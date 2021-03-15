@@ -2,9 +2,90 @@ import pickle as pkl
 import pandas as pd
 import os
 import numpy as np
+from scipy import optimize
+import numpy as np
+import warnings
+import tqdm
 
 from trait2d.analysis import ListOfTracks
 from trait2d.analysis import Track
+
+class Borg:
+    _shared_state = {}
+    def __init__(self):
+        self.__dict__ = self._shared_state
+
+class ModelDB(Borg):
+    """Singleton class holding all models that should be used in analysis."""
+    models = []
+    def __init__(self):
+        Borg.__init__(self)
+    def add_model(self, model):
+        """Add a new model class to the ModelDB.
+
+        Parameters
+        ----------
+        model:
+            Model class (*not* an instance) to add. There are predefined models available in
+            trait2d.analysis.models. Example usage:
+
+            .. code-block:: python
+
+                from trait2d.analysis.models import ModelConfined
+                ModelDB().add_model(ModelConfined)
+        """
+        for m in self.models:
+            if m.__class__ == model:
+                raise ValueError("ModelDB already contains an instance of the model {}.".format(model.__name__))
+        self.models.append(model())
+
+    def get_model(self, model):
+        """
+        Return the model instance from ModelDB.
+
+        Parameters
+        ----------
+        model:
+            Model class (*not* and instance) to remove. Example usage:
+
+            .. code-block:: python
+            
+                from trait2d.analysis.models import ModelConfined
+                ModelDB().get_model(ModelConfined).initial = [1.0e-12, 1.0e-9, 0.5e-3]
+        """
+
+        for i in range(len(self.models)):
+            if model == self.models[i].__class__:
+                return self.models[i]
+        raise ValueError("ModelDB does not contain an instance of the model {}.".format(model.__name__))
+
+    def remove_model(self, model):
+        """
+        Remove a model from ModelDB.
+
+        Parameters
+        ----------
+        model:
+            Model class (*not* an instance) to remove. Example usage:
+
+            .. code-block:: python
+
+                from trait2d.analysis.models import ModelConfined
+                ModelDB().remove_model(ModelConfined)
+        """
+        for i in range(len(self.models)):
+            if model == self.models[i].__class__:
+                self.models.pop(i)
+                return
+        raise ValueError("ModelDB does not contain an instance of the model {}.".format(model.__name__))
+
+    def cleanup(self):
+        """
+        Remove all models from ModelDB. It is good practice to call this
+        at the end of your scripts since other scripts might share the same
+        instance.
+        """
+        self.models = []
 
 def openPKL(path = '.',name=''): #name must be the name of the *pkl-file, e. g. 'Bilayer2_low-conc_meas10_L100.msr.pkl'
     '''Legacy opener for old Minflux PKL files'''
@@ -80,6 +161,18 @@ class MFTrack(Track):
         
         return cls(dict['track'].x,dict['track'].y,dict['track'].t,dict['tid'],dict['track'].frq)
     
+    def plot_msd(self):
+        t = self._tn
+        msd = self._msd
+        err = self._msd_error
+        import matplotlib.pyplot as plt
+        plt.figure()
+        plt.grid(linestyle='dashed', color='grey')
+        plt.xlabel("t")
+        plt.ylabel("MSD")
+        plt.semilogx(t, msd, color='black')
+        plt.fill_between(t, msd-err, msd+err, color='black', alpha=0.5)
+    
     def MF_calculate_msd(self, use_log = False,mod_factor = 0.3):
         '''calculate MSD according to the method elaborated by FR, 
         which includes KMeans clustering to bin the squared displacements 
@@ -127,10 +220,11 @@ class MFTrack(Track):
             #classification.cluster_centers_ = np.exp(classification.cluster_centers_) #bring everything to regular scale again
             
         #actual calculation of a proper time array (maybe it can be cut to save time), msd and msd_error. This is the most computationally heavy step
-        self._msd=[]
-        self._tn = []
-        self._msd_error= []
-        self._tn_error = []
+        self._msd = np.empty(0)
+        self._tn = np.empty(0)
+        self._msd_error= np.empty(0)
+        self._tn_error = np.empty(0)
+        
         from tqdm import tqdm
         
         for i in tqdm(range(max(classification.labels_))):
@@ -138,11 +232,134 @@ class MFTrack(Track):
             #now we select the indices of the time_intervals matrix (lower triangular) fall into the cluster selected above
             idx = np.where((time_intervals>=np.min(unique_time_intervals[cluster_idx]))&(time_intervals<=np.max(unique_time_intervals[cluster_idx])))
             #the calculation of the MSD is now trivial 
-            self._msd.append(np.mean(sdis_matrix[idx]))
-            self._msd_error.append(np.std(sdis_matrix[idx]))
-            self._tn.append(np.mean(tint_matrix_og[idx]))
-            self._tn_error.append(np.std(tint_matrix_og[idx]))
+            self._msd = np.append(self._msd,np.mean(sdis_matrix[idx]))
+            self._msd_error = np.append(self._msd_error,np.std(sdis_matrix[idx])/np.sqrt(len(idx)))
+            self._tn = np.append(self._tn,np.mean(tint_matrix_og[idx]))
+            self._tn_error = np.append(self._tn_error,np.std(tint_matrix_og[idx])/np.sqrt(len(idx)))
         
+    from ._msd import MF_msd_analysis
+    from ._adc import MF_adc_analysis
+    
+    def _MF_categorize2(self, Dapp, J, Dapp_err = None, R: float = 1/6, fraction_fit_points: float = 0.25, fit_max_time: float=None, maxfev=1000, enable_log_sampling = False, log_sampling_dist = 0.2, weighting = 'error'):
+        if fraction_fit_points > 0.25:
+            warnings.warn(
+                "Using too many points for the fit means including points which have higher measurment errors.")
+            
+        #define time array and time interval a bit differently
+
+        T = self._tn[J]
+        dt = self._tn[0]
+        
+        # Get number of points for fit from either fit_max_time or fraction_fit_points
+        if fit_max_time is not None:
+            n_points = int(np.argwhere(T < fit_max_time)[-1])
+        else:
+            n_points = np.argmax(J > fraction_fit_points * J[-1])    
+            cur_dist = 0
+            idxs = []
+            
+        if enable_log_sampling:
+            # Get indexes that are (approximately) logarithmically spaced
+            idxs.append(0)
+            for i in range(1, n_points):
+                cur_dist += np.log10(T[i]/T[i-1])
+                if cur_dist >= log_sampling_dist:
+                    idxs.append(i)
+                    cur_dist = 0
+        else:
+            # Get every index up to n_points
+            idxs = np.arange(0, n_points, dtype=int)
+            
+        error = None
+        if not Dapp_err is None:
+            error = Dapp_err[idxs]       
+                    
+        for model in ModelDB().models:
+            model.R = R
+            model.dt = dt
+            model_name = model.__class__.__name__
+            
+        return model_name
+        
+    def _MF_categorize(self, Dapp, J, Dapp_err = None, R: float = 1/6, fraction_fit_points: float = 0.25, fit_max_time: float=None, maxfev=1000, enable_log_sampling = False, log_sampling_dist = 0.2, weighting = 'error'):
+        if fraction_fit_points > 0.25:
+            warnings.warn(
+                "Using too many points for the fit means including points which have higher measurment errors.")
+            
+        #define time array and time interval a bit differently
+
+        T = self._tn[J]
+        dt = self._tn[0]
+        
+
+        # Get number of points for fit from either fit_max_time or fraction_fit_points
+        if fit_max_time is not None:
+            n_points = int(np.argwhere(T < fit_max_time)[-1])
+        else:
+            n_points = np.argmax(J > fraction_fit_points * J[-1])    
+            cur_dist = 0
+            idxs = []
+            
+        if enable_log_sampling:
+            # Get indexes that are (approximately) logarithmically spaced
+            idxs.append(0)
+            for i in range(1, n_points):
+                cur_dist += np.log10(T[i]/T[i-1])
+                if cur_dist >= log_sampling_dist:
+                    idxs.append(i)
+                    cur_dist = 0
+        else:
+            # Get every index up to n_points
+            idxs = np.arange(0, n_points, dtype=int)
+            
+        error = None
+        if not Dapp_err is None:
+            error = Dapp_err[idxs]        
+        # Perform fits for all included models
+        fit_results = {}
+
+        bic_min = 999.9
+        category = None
+        sigma = None
+        if weighting == 'error':
+            sigma = error
+        elif weighting == 'inverse_variance':
+            sigma = np.power(error, 2.0)
+        elif weighting == 'variance':
+            sigma = 1 / np.power(error, 2.0)
+        elif weighting == 'disabled':
+            sigma = None
+        else:
+            raise ValueError("Unknown weighting method: {}. Possible values are: 'error', 'variance', 'inverse_variance', and 'disabled'.".format(weighting))
+
+        for model in ModelDB().models:
+            model.R = R
+            model.dt = dt
+            model_name = model.__class__.__name__
+
+            r = optimize.curve_fit(model, T[idxs], Dapp[idxs], p0 = model.initial,
+                        sigma = sigma, maxfev = maxfev, method='trf', bounds=(model.lower, model.upper))
+            perr = np.sqrt(np.diag(r[1]))
+            pred = model(T, *r[0])
+            bic = BIC(pred[idxs], Dapp[idxs], len(r[0]), len(idxs))
+            if bic < bic_min:
+                bic_min = bic
+                category = model_name
+
+            from scipy.stats import kstest
+            test_results = kstest(Dapp[idxs], pred[idxs], N = len(idxs))
+
+            fit_results[model_name] = {"params": r[0], "errors": perr, "bic" : bic, "KSTestStat": test_results[0], "KStestPValue": test_results[1]}
+
+        # Calculate the relative likelihood for each model
+        for model in ModelDB().models:
+            model_name = model.__class__.__name__
+            rel_likelihood = np.exp((-fit_results[model_name]["bic"] + bic_min) * 0.5)
+            fit_results[model_name]["rel_likelihood"] = rel_likelihood
+
+        fit_indices = idxs
+        return category, fit_indices, fit_results
+    
 
 class MFTrackDB(ListOfTracks):
     '''A custom class to work with the Minflux Tracks in the legacy PKL format'''
