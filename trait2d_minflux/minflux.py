@@ -387,3 +387,28 @@ class MFTrackDB(ListOfTracks):
             
         return cls(ensemble)
     
+
+
+def BIC(pred: list, target: list, k: int, n: int):
+    """Bayesian Information Criterion
+    Parameters
+    ----------
+    pred: list
+        Model prediction
+    target: list
+        Model targe
+
+    k: int
+        Number of free parameters in the fit
+    n: int
+        Number of data points used to fit the model
+    Returns
+    -------
+    bic : float
+        Bayesian Information Criterion
+    """
+    # Compute RSS
+    RSS = np.sum((np.array(pred) - np.array(target)) ** 2)
+    bic = k * np.log(n) + n * np.log(RSS / n)
+    return bic
+    
