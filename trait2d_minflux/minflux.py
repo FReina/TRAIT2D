@@ -230,7 +230,7 @@ class MFTrack(Track):
         for i in tqdm(range(max(classification.labels_))):
             cluster_idx = np.where(classification.labels_==i) #select which of the unique_time_intervals are to be considered now
             #now we select the indices of the time_intervals matrix (lower triangular) fall into the cluster selected above
-            idx = np.where((time_intervals>=np.min(unique_time_intervals[cluster_idx]))&(time_intervals<=np.max(unique_time_intervals[cluster_idx])))
+            idx = np.where((time_intervals>=np.min(unique_time_intervals[cluster_idx]))&(time_intervals<=np.max(unique_time_intervals[cluster_idx]))) #this passage can be optimized with np.mask_indices by creating a mask with np.tril
             #the calculation of the MSD is now trivial 
             self._msd = np.append(self._msd,np.mean(sdis_matrix[idx]))
             self._msd_error = np.append(self._msd_error,np.std(sdis_matrix[idx])/np.sqrt(len(idx)))
