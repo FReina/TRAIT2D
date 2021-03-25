@@ -2,7 +2,7 @@ from trait2d.analysis import ModelDB
 
 import numpy as np
 
-def MF_adc_analysis(self, R: float = 1/6, fraction_fit_points: float=0.25, fit_max_time: float = None, maxfev = 1000, enable_log_sampling = False, log_sampling_dist = 0.2, weighting = 'error'):
+def MF_adc_analysis(self, R: float = 1/6, fraction_fit_points: float = 0.25, fit_max_time: float = None, maxfev = 1000, enable_log_sampling = False, log_sampling_dist = 0.2, weighting = 'error'):
     """Revised analysis using the apparent diffusion coefficient
 
     Parameters

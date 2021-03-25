@@ -239,48 +239,7 @@ class MFTrack(Track):
         
     from ._msd import MF_msd_analysis
     from ._adc import MF_adc_analysis
-    
-    def _MF_categorize2(self, Dapp, J, Dapp_err = None, R: float = 1/6, fraction_fit_points: float = 0.25, fit_max_time: float=None, maxfev=1000, enable_log_sampling = False, log_sampling_dist = 0.2, weighting = 'error'):
-        if fraction_fit_points > 0.25:
-            warnings.warn(
-                "Using too many points for the fit means including points which have higher measurment errors.")
             
-        #define time array and time interval a bit differently
-
-        T = self._tn[J]
-        dt = self._tn[0]
-        
-        # Get number of points for fit from either fit_max_time or fraction_fit_points
-        if fit_max_time is not None:
-            n_points = int(np.argwhere(T < fit_max_time)[-1])
-        else:
-            n_points = np.argmax(J > fraction_fit_points * J[-1])    
-            cur_dist = 0
-            idxs = []
-            
-        if enable_log_sampling:
-            # Get indexes that are (approximately) logarithmically spaced
-            idxs.append(0)
-            for i in range(1, n_points):
-                cur_dist += np.log10(T[i]/T[i-1])
-                if cur_dist >= log_sampling_dist:
-                    idxs.append(i)
-                    cur_dist = 0
-        else:
-            # Get every index up to n_points
-            idxs = np.arange(0, n_points, dtype=int)
-            
-        error = None
-        if not Dapp_err is None:
-            error = Dapp_err[idxs]       
-                    
-        for model in ModelDB().models:
-            model.R = R
-            model.dt = dt
-            model_name = model.__class__.__name__
-            
-        return model_name
-        
     def _MF_categorize(self, Dapp, J, Dapp_err = None, R: float = 1/6, fraction_fit_points: float = 0.25, fit_max_time: float=None, maxfev=1000, enable_log_sampling = False, log_sampling_dist = 0.2, weighting = 'error'):
         if fraction_fit_points > 0.25:
             warnings.warn(
@@ -296,9 +255,12 @@ class MFTrack(Track):
         if fit_max_time is not None:
             n_points = int(np.argwhere(T < fit_max_time)[-1])
         else:
-            n_points = np.argmax(J > fraction_fit_points * J[-1])    
-            cur_dist = 0
-            idxs = []
+            n_points = np.argmax(J > fraction_fit_points * J[-1])  
+            
+        print(f'n_points ={n_points}')  
+        
+        cur_dist = 0
+        idxs = []
             
         if enable_log_sampling:
             # Get indexes that are (approximately) logarithmically spaced
@@ -312,6 +274,8 @@ class MFTrack(Track):
             # Get every index up to n_points
             idxs = np.arange(0, n_points, dtype=int)
             
+        print(idxs)
+        
         error = None
         if not Dapp_err is None:
             error = Dapp_err[idxs]        
