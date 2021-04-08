@@ -150,17 +150,19 @@ class MFTrack(Track):
         self._msd_error= np.empty(0)
         self._tn_error = np.empty(0)
         
+        
         from tqdm import tqdm
         
         for i in tqdm(range(max(classification.labels_))):
             cluster_idx = np.where(classification.labels_==i) #select which of the unique_time_intervals are to be considered now
             #now we select the indices of the time_intervals matrix (lower triangular) fall into the cluster selected above
-            idx = np.where((time_intervals>=np.min(unique_time_intervals[cluster_idx]))&(time_intervals<=np.max(unique_time_intervals[cluster_idx])))
-            #the calculation of the MSD is now trivial 
+            idx = ((time_intervals>=np.min(unique_time_intervals[cluster_idx]))&(time_intervals<=np.max(unique_time_intervals[cluster_idx])))
+            #the calculation of the MSD is now trivial             
             self._msd = np.append(self._msd,np.mean(sdis_matrix[idx]))
             self._msd_error = np.append(self._msd_error,np.std(sdis_matrix[idx])/np.sqrt(len(idx)))
             self._tn = np.append(self._tn,np.mean(tint_matrix_og[idx]))
             self._tn_error = np.append(self._tn_error,np.std(tint_matrix_og[idx])/np.sqrt(len(idx)))
+            
         
     from trait2d.analysis.minflux._msd import MF_msd_analysis
     from trait2d.analysis.minflux._adc import MF_adc_analysis
