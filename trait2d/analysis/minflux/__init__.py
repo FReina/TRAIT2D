@@ -154,7 +154,7 @@ class MFTrack(Track):
         from tqdm import tqdm
         
         for i in tqdm(range(max(classification.labels_))):
-            cluster_idx = np.where(classification.labels_==i) #select which of the unique_time_intervals are to be considered now
+            cluster_idx = (classification.labels_==i) #select which of the unique_time_intervals are to be considered now
             #now we select the indices of the time_intervals matrix (lower triangular) fall into the cluster selected above
             idx = ((time_intervals>=np.min(unique_time_intervals[cluster_idx]))&(time_intervals<=np.max(unique_time_intervals[cluster_idx])))
             #the calculation of the MSD is now trivial             
