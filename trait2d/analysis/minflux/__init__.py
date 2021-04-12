@@ -20,7 +20,7 @@ def openPKL(path = '.',name=''): #name must be the name of the *pkl-file, e. g. 
 
 def importPKL(path='.',name='',minimum_length = 500, min_frq = 0, max_frq = 250000, factor_time_diff = 5):
         '''Legacy importer for old Minflux PKL files.
-        Filters by minimum_length and min_frq and max_frq'''
+        Filters by minimum_length and min_frq and max_frq'''        
         #use openPKL to get the data from the file
         rawdata = openPKL(path,name)
         if type(rawdata) == list:
@@ -157,11 +157,15 @@ class MFTrack(Track):
             cluster_idx = (classification.labels_==i) #select which of the unique_time_intervals are to be considered now
             #now we select the indices of the time_intervals matrix (lower triangular) fall into the cluster selected above
             idx = ((time_intervals>=np.min(unique_time_intervals[cluster_idx]))&(time_intervals<=np.max(unique_time_intervals[cluster_idx])))
-            #the calculation of the MSD is now trivial             
+            #the calculation of the MSD is now trivial     
+            if i==1:
+                pino=len(idx)        
             self._msd = np.append(self._msd,np.mean(sdis_matrix[idx]))
             self._msd_error = np.append(self._msd_error,np.std(sdis_matrix[idx])/np.sqrt(len(idx)))
             self._tn = np.append(self._tn,np.mean(tint_matrix_og[idx]))
             self._tn_error = np.append(self._tn_error,np.std(tint_matrix_og[idx])/np.sqrt(len(idx)))
+        
+        return classification.cluster_centers_, pino
             
         
     from trait2d.analysis.minflux._msd import MF_msd_analysis
