@@ -98,7 +98,7 @@ class MFTrack(Track):
         plt.semilogx(t, msd, color='black')
         plt.fill_between(t, msd-err, msd+err, color='black', alpha=0.5)
     
-    def MF_calculate_msd(self, use_log = False,mod_factor = 0.3):
+    def MF_calculate_msd_cluster(self, use_log = False,mod_factor = 0.3):
         '''calculate MSD according to the method elaborated by FR, 
         which includes KMeans clustering to bin the squared displacements 
         given the uneven nature of the sampling
@@ -149,23 +149,23 @@ class MFTrack(Track):
         self._tn = np.empty(0)
         self._msd_error= np.empty(0)
         self._tn_error = np.empty(0)
-        
+        pino = np.empty(0)
         
         from tqdm import tqdm
         
         for i in tqdm(range(max(classification.labels_))):
             cluster_idx = (classification.labels_==i) #select which of the unique_time_intervals are to be considered now
             #now we select the indices of the time_intervals matrix (lower triangular) fall into the cluster selected above
-            idx = ((time_intervals>=np.min(unique_time_intervals[cluster_idx]))&(time_intervals<=np.max(unique_time_intervals[cluster_idx])))
-            #the calculation of the MSD is now trivial     
-            if i==1:
-                pino=len(idx)        
+            idx = np.where((time_intervals>=np.min(unique_time_intervals[cluster_idx]))&(time_intervals<=np.max(unique_time_intervals[cluster_idx])))
+            #the calculation of the MSD is now trivial
+                
+            pino = np.append(pino,len(idx[0]))
             self._msd = np.append(self._msd,np.mean(sdis_matrix[idx]))
-            self._msd_error = np.append(self._msd_error,np.std(sdis_matrix[idx])/np.sqrt(len(idx)))
+            self._msd_error = np.append(self._msd_error,np.std(sdis_matrix[idx])/np.sqrt(len(idx[0])))
             self._tn = np.append(self._tn,np.mean(tint_matrix_og[idx]))
             self._tn_error = np.append(self._tn_error,np.std(tint_matrix_og[idx])/np.sqrt(len(idx)))
         
-        return classification.cluster_centers_, pino
+        return initial_guess, classification, pino
             
         
     from trait2d.analysis.minflux._msd import MF_msd_analysis
