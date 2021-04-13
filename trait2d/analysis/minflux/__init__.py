@@ -2,6 +2,7 @@ import pickle as pkl
 import pandas as pd
 import os
 import numpy as np
+import math as m
 from scipy import optimize
 import numpy as np
 import warnings
@@ -102,13 +103,12 @@ class MFTrack(Track):
         '''calculate MSD according to the method elaborated by FR, 
         which includes KMeans clustering to bin the squared displacements 
         given the uneven nature of the sampling
-        The computation time can be improved with use_log = True UNTESTED
+        The computation time can be improved with use_log = True 
         mod_factor is set to 0.3 as default. Increasing it will increase the number of clusters (i.e. time points), 
         but it starts behaving strangely, increasing variability in msd, and disregarding short time intervals. 
         With anything more than 0.8 (actually not rigorously tested), set use_log = True
         '''
         from sklearn.cluster import KMeans
-        import time
         
         tint_matrix_og = self._t.reshape(-1,1) - self._t #calculate all possible positive time intervals as a matrix
         tint_matrix = np.around(self._t.reshape(-1,1) - self._t,5) #rounded down version to speed up computations
@@ -134,7 +134,7 @@ class MFTrack(Track):
         original_shape = tint_matrix.shape #necessary for the indexing operation
         min_timeint = np.amin(unique_time_intervals[np.nonzero(unique_time_intervals)])
         #initialize initial guess for the clustering and number of clusters
-        initial_guess = np.linspace(min_timeint, min_timeint*int(mod_factor*len(self._t)),num = int(mod_factor*len(self._t)))
+        initial_guess = np.linspace(min_timeint, min_timeint*int(mod_factor*len(self._t)),num = int(mod_factor*len(self._t))) 
         n_clusters = len(initial_guess) #avoids segfaults
         
         if not use_log:
@@ -149,7 +149,7 @@ class MFTrack(Track):
         self._tn = np.empty(0)
         self._msd_error= np.empty(0)
         self._tn_error = np.empty(0)
-        pino = np.empty(0)
+        cardinality = np.empty(0)
         
         from tqdm import tqdm
         
@@ -159,14 +159,53 @@ class MFTrack(Track):
             idx = np.where((time_intervals>=np.min(unique_time_intervals[cluster_idx]))&(time_intervals<=np.max(unique_time_intervals[cluster_idx])))
             #the calculation of the MSD is now trivial
                 
-            pino = np.append(pino,len(idx[0]))
+            cardinality = np.append(cardinality,len(idx[0]))
             self._msd = np.append(self._msd,np.mean(sdis_matrix[idx]))
             self._msd_error = np.append(self._msd_error,np.std(sdis_matrix[idx])/np.sqrt(len(idx[0])))
             self._tn = np.append(self._tn,np.mean(tint_matrix_og[idx]))
             self._tn_error = np.append(self._tn_error,np.std(tint_matrix_og[idx])/np.sqrt(len(idx)))
         
-        return initial_guess, classification, pino
-            
+        return initial_guess, classification, cardinality
+
+    def MF_calculate_msd(self, precision=5):
+        '''calculate MSD with binning, following a less sophisticated method arising from discussion with TW.
+        
+        precision: number of decimal places to consider when binning the time intervals, higher precision may lead to slower
+        computation times.'''
+        
+        if precision <4:
+            raise Exception("not enough decimal spaces")
+        else:
+            if precision >8:
+                raise warnings.warn("this level of precision does not make sense")
+                
+        #calculate matrices to get numbers from
+        #time interval matrices
+        tint_matrix_og = self._t.reshape(-1,1) - self._t #calculate all possible positive time intervals as a matrix
+        tint_matrix = np.around(self._t.reshape(-1,1) - self._t,precision) #rounded down version to speed up computations
+        time_intervals = np.tril(tint_matrix) #we only really need the lower triangular matrix
+        
+        #we now need to create the corresponding squared displacements
+        xdis_matrix = self._x.reshape(-1, 1) - self._x
+        ydis_matrix = self._y.reshape(-1, 1) - self._y
+        sdis_matrix = np.power(xdis_matrix, 2.0) + np.power(ydis_matrix, 2.0) # squared displacement matrix
+        displacements = np.tril(sdis_matrix) # only using the lower triangular matrix coherently with the time_intervals matrix above
+        
+        #the binning is done on the linear array of unique time intervals 
+        
+        unique_time_intervals, cardinality = np.unique(time_intervals[np.nonzero(time_intervals)], return_counts=True)
+        #we get the minimum time interval
+        min_timeint = np.amin(unique_time_intervals[np.nonzero(unique_time_intervals)])
+        #get the number of bins as an approximation with the total duration of the track divided by the min_timeint
+        nbins = m.floor((self._t[-1]-self._t[0])/min_timeint)
+        #now we have to calculate the bin centers
+        bin_centers = np.linspace(min_timeint, min_timeint*nbins,num = nbins)
+        
+        #now for every bin_center we need to make a mask on time_intervals
+        
+        
+        return unique_time_intervals, cardinality, bin_centers
+        
         
     from trait2d.analysis.minflux._msd import MF_msd_analysis
     from trait2d.analysis.minflux._adc import MF_adc_analysis
