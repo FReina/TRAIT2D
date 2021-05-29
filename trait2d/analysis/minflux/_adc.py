@@ -2,6 +2,8 @@ from trait2d.analysis import ModelDB
 
 import numpy as np
 
+   
+
 def MF_adc_analysis(self, R: float = 1/6, fraction_fit_points: float = 0.25, fit_max_time: float = None, maxfev = 1000, enable_log_sampling = False, log_sampling_dist = 0.2, weighting = 'error'):
     """Revised analysis using the apparent diffusion coefficient
 
@@ -45,6 +47,17 @@ def MF_adc_analysis(self, R: float = 1/6, fraction_fit_points: float = 0.25, fit
     
     self._adc = Dapp = self._msd / (4 * T * (1-2*R*dt / T))
     self._adc_error = Dapp_err = self._msd_error / (4 * T * (1 - 2*R*dt / T))
+    
+    if self._adc is None:
+        self.MF_calculate_adc()
+        
+    Dapp = self._adc
+    Dapp_err = self._adc_error
+    dt = self._tn[0]
+    N = self._msd.size
+    
+    #time array
+    T = self._tn[0:N+1] 
     
     #do the fitting
     
