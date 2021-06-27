@@ -314,7 +314,7 @@ class MFTrack(Track):
             model_name = model.__class__.__name__
 
             r = optimize.curve_fit(model, T[idxs], Dapp[idxs], p0 = model.initial,
-                        sigma = sigma, maxfev = maxfev, method='trf', bounds=(model.lower, model.upper))
+                        sigma = sigma, maxfev = maxfev, method='trf', bounds=(model.lower, model.upper), absolute_sigma = True)
             perr = np.sqrt(np.diag(r[1]))
             pred = model(T, *r[0])
             bic = BIC(pred[idxs], Dapp[idxs], len(r[0]), len(idxs))
@@ -335,6 +335,7 @@ class MFTrack(Track):
 
         fit_indices = idxs
         return category, fit_indices, fit_results
+    
     
 class MFResTrack(MFTrack):
     ''''
@@ -584,171 +585,60 @@ class MFTrackDB(ListOfTracks):
         
         print('Use MF_adc_summary instead!')
     
-    def MF_adc_summary(self, avg_only_params = False, interpolation = False, plot_msd = False, plot_dapp = False, plot_pie_chart = False):
+    def MF_adc_summary(self, max_index = -1, avg_only_params = False, ensemble_average = False, plot_msd = False, plot_dapp = False, plot_pie_chart = False):
         """Average tracks by model and optionally plot the results.
         This is the Minflux version. That means that the tracks potentially have very different lengths. 
         It makes use of the MF_model_average module heavily.
 
         Parameters
         ----------
+        max_index (default = -1)
+            In case the user wants a specific number of MSD and ADC points
         avg_only_params: bool
-            Only average the model parameters but not D_app and MSD
+            Only average the model parameters but not D_app and MSD. Returns the fit parameters as tables, divided by best model, the means and the standard deviation
+        ensemble_average: bool
+            returns MF_ensemble_average()
         plot_msd: bool
-            Plot the averaged MSD for each model.
+            Plot the averaged MSD for each model, and the ensemble average.
         plot_dapp: bool
-            Plot the averaged D_app for each model.
+            Plot the averaged D_app for each model, and the ensemble average.
         plot_pie_chart: bool
             Plot a pie chart showing the relative fractions of each model.
 
         Returns
         -------
         results : dict
-            Relative shares and averaged values of each model.
+            Without other options, it will return MF_model_average()
         """
-        warnings.warn('MODEL UNDER CONSTRUCTION')
+        warnings.warn('MODEL UNDER CONSTRUCTION, PLOTS STILL NOT DONE')
         
-        if avg_only_params and (plot_msd or plot_dapp):
-            warnings.warn("avg_only_params is True. plot_msd or plot_dapp will have no effect.")
-
-        track_length = 0
-        max_t = 0.0
-        t = None
-        for track in self._tracks:
-            if track.get_t()[-1] > max_t:
-                max_t = track.get_t()[-1]
-                track_length = track.get_x().size
-                t = track.get_t()
-
-        average_D_app = {}
-        average_MSD = {}
-        average_params = {}
-        sampled = {}
-        counter = {}
-
-        dt = t[1] - t[0]
-
-        k = 0
-        for track in self._tracks:
-            k += 1
-            if track.get_t()[1] - track.get_t()[0] != dt and not avg_only_params and not interpolation:
-                raise ValueError("Cannot average MSD and D_app: Encountered track with incorrect time step size! "
-                                 "(Got {}, expected {} for track {}.) Use the flag avg_only_params = True or "
-                                 "enable interpolation with interpolation = True.".format(
-                    track.get_t()[1] - track.get_t()[0], dt, k + 1))
-
-        # Parameter averaging
-        for track in self._tracks:
-            if track.get_adc_analysis_results() is None:
-                continue
-            model = track.get_adc_analysis_results()["best_model"]
-            if model is not None:
-                if not model in average_params.keys():
-                    average_params[model] = len(track.get_adc_analysis_results()["fit_results"][model]["params"]) * [0.0]
-                    counter[model] = 0
-                counter[model] += 1
-                average_params[model] += track.get_adc_analysis_results()["fit_results"][model]["params"]
+        #Check if the ADC analysis has been run on all tracks
         
-        for model in average_params.keys():
-            average_params[model] /= counter[model]
-        
-        k = 0
         for track in self._tracks:
-            k += 1
-            if track.get_t()[1] - track.get_t()[0] != dt and not avg_only_params and not interpolation:
-                raise ValueError("Cannot average MSD and D_app: Encountered track with incorrect time step size! "
-                                 "(Got {}, expected {} for track {}.) Use the flag avg_only_params = True or "
-                                 "enable interpolation with interpolation = True.".format(
-                    track.get_t()[1] - track.get_t()[0], dt, k + 1))
-
-        if not avg_only_params:
-            for track in self._tracks:
-                if track.get_adc_analysis_results() is None:
-                    continue
-
-                model = track.get_adc_analysis_results()["best_model"]
-
-                D_app = np.zeros(track_length - 3)
-                MSD = np.zeros(track_length - 3)
-                if interpolation:
-                    interp_MSD = interpolate.interp1d(track.get_t()[0:-3], track.get_msd(), bounds_error = False, fill_value = 0)
-                    interp_D_app = interpolate.interp1d(track.get_t()[0:-3], track.get_adc_analysis_results()["Dapp"], bounds_error = False, fill_value = 0)
-                    MSD = interp_MSD(t[0:-3])
-                    D_app = interp_D_app(t[0:-3])
-                else:
-                    D_app[0:track._adc.size-3] = track.get_adc_analysis_results()["Dapp"][0:-3]
-                    MSD[0:track._msd.size-3] = track.get_msd()[0:-3]
-                mask = np.zeros(track_length - 3)
-                np.put(mask, np.where(MSD != 0.0), 1)
-
-
-                if not model in average_D_app.keys():
-                    average_D_app[model] = np.zeros(track_length - 3)
-                    average_MSD[model] = np.zeros(track_length - 3)
-                    sampled[model] = np.zeros(track_length - 3)
-
-                average_D_app[model] += D_app
-                average_MSD[model] += MSD
-                sampled[model] += mask
-
-        counter_sum = 0
-        for model in counter:
-            counter_sum += counter[model]
-            if counter[model]:
-                average_D_app[model] /= sampled[model]
-                average_MSD[model] /= sampled[model]
-
-        if counter_sum == 0:
-            warnings.warn("No tracks are categorized!")
-
-        sector = {}
-        for model in counter:
-            sector[model] = counter[model] / len(self._tracks)
-        sector["not catergorized"] = (len(self._tracks) - counter_sum) / len(self._tracks)
-
-        if plot_msd and not avg_only_params:
-            import matplotlib.pyplot as plt
-            plt.figure()
-            ax = plt.gca()
-            ax.set_xlabel("t")
-            ax.set_ylabel("Average MSD")
-            for model in counter:
-                ax.semilogx(t[0:-3], average_MSD[model], label=model)
-            ax.legend()
-
-        if plot_dapp and not avg_only_params:
-            import matplotlib.pyplot as plt
-            plt.figure()
-            min_val = 9999999.9
-            max_val = 0.0
-            ax = plt.gca()
-            ax.set_xlabel("t")
-            ax.set_ylabel("Average D_app")
-            for model in counter:
-                new_min = np.min(average_D_app[model])
-                new_max = np.max(average_D_app[model])
-                min_val = min(min_val, new_min)
-                max_val = max(max_val, new_max)
-                l, = ax.semilogx(t[0:-3], average_D_app[model], label=model)
-                r = average_params[model]
-                for c in ModelDB().models:
-                    if c.__class__.__name__ == model:
-                        m = c
-                pred = m(t, *r)
-                plt.semilogx(t[0:-3], pred[0:-3], linestyle='dashed', color=l.get_color())
-            ax.set_ylim(0.95*min_val, 1.05*max_val)
-            ax.legend()
-
-        if plot_pie_chart:
-            import matplotlib.pyplot as plt
-            plt.figure()
-            ax = plt.gca()
-            ax.pie(sector.values(),
-                   labels=sector.keys())
-
-        return {"sectors": sector,
-                "average_params": average_params, 
-                "average_msd": average_MSD,
-                "average_dapp": average_D_app}
+            if track._adc_analysis_results is None:
+                raise ValueError('the ADC analysis for all tracks needs to be carried out first')
+                
+        if avg_only_params:
+            
+            params = {}
+            params['sectors'] = self.MF_model_average()['sectors']
+            for model in ModelDB().models:
+                modname = model.__class__.__name__
+                #get a list and then a MFTrackDB of the tracks which are best described by model
+                model_ensemble = [track for track in self._tracks if track._adc_analysis_results["best_model"] == modname]
+                params[modname] = {}
+                if model_ensemble:
+                    segmented = MFTrackDB(model_ensemble)
+                    params[modname]['data'] = np.stack([track._adc_analysis_results['fit_results'][modname]['params'] for track in segmented._tracks], axis = 0)
+                    params[modname]['average'] = [np.average(params[modname]['data'][:,i]) for i in range(params[modname]['data'].shape[1])]
+                    params[modname]['stdev'] = [np.std(params[modname]['data'][:,i]) for i in range(params[modname]['data'].shape[1])]
+                    
+            return params
+                
+        if ensemble_average:
+            return self.MF_ensemble_average(max_index)
+        
+        return self.MF_model_average()
     
 
 
