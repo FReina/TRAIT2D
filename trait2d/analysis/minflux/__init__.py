@@ -176,6 +176,9 @@ Created on Wed July 21 14:10:17 2021
     
     return traceInfo
 
+def importJSON():
+    pass
+
 
 ###CLASSES
 
