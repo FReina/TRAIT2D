@@ -4,15 +4,16 @@ import os
 import numpy as np
 import math as m
 from scipy import optimize
-import numpy as np
 import warnings
-import tqdm
+import json
 from scipy import interpolate
 
 from trait2d.analysis import ListOfTracks
 from trait2d.analysis import Track
 
 from trait2d.analysis import ModelDB
+
+### FUNCTIONS TO LOAD PKL FILES
 
 def openPKL(path = '.',name=''): #name must be the name of the *pkl-file, e. g. 'Bilayer2_low-conc_meas10_L100.msr.pkl'
     '''Legacy opener for old Minflux PKL files'''
@@ -59,6 +60,124 @@ def importPKL(path='.',name='',minimum_length = 500, min_frq = 0, max_frq = 2500
                     track_counter+=1
                     
         return list_of_tracks
+    
+###FUNCTIONS TO LOAD JSON FILES
+
+def openJSON(path = '.', filename = ''):
+    
+"""
+Created on Wed July 21 14:10:17 2021
+
+@author: t.weihs
+"""
+    
+    if os.path.isfile(os.path.join(path,filename)):
+    
+        with open(os.path.join(path,filename),'rb') as data:
+            try:
+                msr = json.load(data)
+                data.close()
+                return msr
+            except:
+                print('\n\tCouldn\'t read data file!\n')
+                return 0
+    
+    else:
+        print('Data not found')
+        return 0
+
+
+def traceInfoFromJson(msr):
+
+"""
+Created on Wed July 21 14:10:17 2021
+
+@author: t.weihs
+"""
+    
+    msr = np.array(msr)
+    
+    traceType = [
+        ('tim', float),
+        ('loc', float, (3,)),
+        ('fbg', float),
+        ('frq', float),
+        ('cts', int),
+        ('cfr', float)
+        ]
+    
+    locs = np.zeros((len(msr),), dtype = [('tid', int),
+                                          ('tim', float),
+                                          ('vld', bool),
+                                          ('loc', float, (3,)),
+                                          ('fbg', float),
+                                          ('frq', float),
+                                          ('cts', int),
+                                          ('cfr', float)]
+                    )
+
+    for i, entry in enumerate(locs):
+        locs[i]['tid'] = msr[i]['tid']
+        locs[i]['tim'] = msr[i]['tim']
+        locs[i]['vld'] = msr[i]['vld']
+        itr = msr[i]['itr'][-1]            #itr[-1]: Only the last iteration is of interest to us (at least right now I suppose)
+        locs[i]['loc'] = itr['loc']                                                  
+        locs[i]['fbg'] = itr['fbg']        #background frequency during the localization, is 0.0 if bgcSense = False in the sequence
+        locs[i]['frq'] = itr['efo']        #emission frequency during the localization
+        locs[i]['cts'] = itr['eco']        #counts that contribute to the localization
+        locs[i]['cfr'] = itr['cfr']        #center frequency ratio                               
+
+
+
+    traceInfoType = [
+        ('tid', int),
+        ('dura', float),
+        ('nloc', int),
+        ('mddt', float),
+        ('mfrq', float),
+        ('lgcy', bool),
+        ('trac', object),  
+        ]
+
+    LV = locs[locs['vld']]
+    
+    traceTidByNum, ida = np.unique(LV['tid'], return_inverse=True)
+    traceNums, traceLocCntByNum = np.unique(ida, return_counts=True)
+
+    traceInfo = np.zeros(traceNums.size, dtype=traceInfoType)
+    
+    try:                    #some metrics about each individual track is extracted for filtering,
+                            #loc data is stored into "trac" array for each unique trace ID (tid)
+    
+        for n, ti in enumerate(traceInfo):
+            
+            ti['tid'] = traceTidByNum[n]
+            idcs = np.where(LV['tid']==traceTidByNum[n])[0]
+                        
+            trac = np.zeros((idcs.size,), dtype = traceType)
+            trac['tim'] = LV[idcs]['tim']           
+            trac['loc'] = LV[idcs]['loc']
+            trac['fbg'] = LV[idcs]['fbg']
+            trac['frq'] = LV[idcs]['frq']
+            trac['cts'] = LV[idcs]['cts']
+            trac['cfr'] = LV[idcs]['cfr']
+            ti['trac'] = trac
+            
+            trc = ti['trac']
+            trl = trc[~np.isnan(trc['loc'].any(axis=1))]
+            ti['dura'] = trl['tim'].max()-trl['tim'].min()          #duration of the track
+            ti['nloc'] = trl.size                                   #amount of localizations in the track
+            ti['mddt'] = np.nanmedian(np.diff(trl['tim']))          #median time distance in between localizations
+            ti['mfrq'] = np.nanmean(trl['frq'])                     #mean time distance in between localizations
+    
+    except:
+        print('\n\tERROR: \ttrack data wasn\'t successfully extracted!\n')
+        return 0
+    
+    return traceInfo
+
+
+###CLASSES
 
 class MFTrack(Track):
     '''custom class to work with Minflux tracks in the legacy PKL format.
