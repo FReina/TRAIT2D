@@ -8,6 +8,10 @@ import warnings
 import json
 from scipy import interpolate
 
+from pandas.core.common import SettingWithCopyWarning
+warnings.simplefilter(action = "ignore", category = SettingWithCopyWarning)
+warnings.simplefilter("ignore", category = RuntimeWarning)
+
 from trait2d.analysis import ListOfTracks
 from trait2d.analysis import Track
 
@@ -65,11 +69,12 @@ def importPKL(path='.',name='',minimum_length = 500, min_frq = 0, max_frq = 2500
 
 def openJSON(path = '.', filename = ''):
     
-"""
-Created on Wed July 21 14:10:17 2021
-
-@author: t.weihs
-"""
+    """
+    Created on Wed July 21 14:10:17 2021
+    
+    @author: t.weihs
+    Modified by FReina
+    """
     
     if os.path.isfile(os.path.join(path,filename)):
     
@@ -87,13 +92,16 @@ Created on Wed July 21 14:10:17 2021
         return 0
 
 
-def traceInfoFromJson(msr):
+def traceInfoFromJson(path = '.',filename = ''):
 
-"""
-Created on Wed July 21 14:10:17 2021
-
-@author: t.weihs
-"""
+    """
+    Created on Wed July 21 14:10:17 2021
+    
+    @author: t.weihs
+    Modified by FReina
+    """
+    
+    msr = openJSON(path,filename)
     
     msr = np.array(msr)
     
@@ -176,9 +184,69 @@ Created on Wed July 21 14:10:17 2021
     
     return traceInfo
 
-def importJSON():
-    pass
-
+def importJSON(path = '.', filename= '',minimum_length = 0, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
+    
+    '''importer for MINFLUX JSON files
+    Can filter by frequency and trajectory length
+    -----------------
+    Parameters:
+        path (string, default '.'):
+            the name of the folder where the json file is
+        filename (string):
+            filename including .json extension
+        minimum_length (int, default = 0):
+            the minimum number of localizations in a track in order to analize it
+        min_frq (int, default = 0):
+            minimum value of the average emission frequency of the track for it to be considered.
+            It should be left at zero unless bleaching is a concern
+        max_frq (int, default = infinite):
+            maximum value of the average emission frequency of the track.
+            Rationale is that if the frequency ecceeds some value, it then maybe more than one emitter. 
+            Can be left at infinite if that is not a concern
+        factor_time_diff (int, default = 10):
+            maximum time separation between two successive localizations for a track to be considered the same.
+            Rationale: maybe the particle is lost by the microscope, and a different one is then tracked.
+            Put it at a very high value (es: 50) to ignore
+    -----------------
+    Returns:
+        list_of_tracks:
+            list of imported trajectories, containing tracks filtered according to the input parameters            
+    '''
+    
+    rawdata = traceInfoFromJson(path, filename)
+    #filter by minimum number of localizations. Adds +4 to avoid counting in the minimum number also the final iterations which are usually empty.
+    rawdata = rawdata[rawdata['nloc']>minimum_length + 5]
+    #pass these data in a pandas dataframe
+    
+    export = pd.DataFrame(data = [],columns = ('x','y','t','tid','frq'))
+    id = 0
+    
+    for track in rawdata:
+        id+=1
+        ids = np.zeros((track['trac']['loc'][1:-4].shape[0],1))
+        ids.fill(id)
+        export = export.append(pd.DataFrame(np.column_stack((track['trac']['loc'][1:-4,0],track['trac']['loc'][1:-4,1],track['trac']['tim'][1:-4],ids,track['trac']['frq'][1:-4])),columns = ('x','y','t','tid','frq')))
+        
+    #enact filter by time step separation and emission frequency interval
+    
+    list_of_tracks = []
+    track_counter = 0
+    
+    for tid in export['tid'].unique():
+        target = export.loc[export['tid']==tid]
+        target['tint'] = target['t'].diff(periods = 1)
+        
+        #filter by time between localizations
+        cuts = np.argwhere(np.array(target['tint']) > factor_time_diff * target.tint.min())
+        split = np.split(target, cuts[:,0],axis = 0)
+        
+        for s in split:
+            mean_frq = s['frq'].mean()
+            if mean_frq < max_frq and mean_frq>min_frq and s.shape[0] > minimum_length:
+                list_of_tracks.append({'track':s, 'tid': track_counter, 'avg_frq': mean_frq, 'length':s.shape[0]})
+                track_counter+=1
+        
+    return list_of_tracks
 
 ###CLASSES
 
