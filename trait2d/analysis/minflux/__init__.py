@@ -278,6 +278,12 @@ class MFTrack(Track):
         
         return cls(dict['track'].x,dict['track'].y,dict['track'].t,dict['tid'],dict['track'].frq)
     
+    def from_importJSON(cls,dict):
+        '''function to import using the return from the importJSON function, using JSON files''' 
+        
+        return cls(dict['track'].x,dict['track'].y,dict['track'].t,dict['tid'],dict['track'].frq)
+        
+    
     def plot_msd(self):
         t = self._tn
         msd = self._msd
@@ -592,6 +598,16 @@ class MFTrackDB(ListOfTracks):
         
         for dataset in rawdata:
             ensemble.append(MFTrack.from_importPKL(dataset))
+            
+        return cls(ensemble)
+    
+    def from_json(cls, path, name, minimum_length = 100, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
+        
+        ensemble = []
+        rawdata = importJSON(path=path,name = name,minimum_length = minimum_length, min_frq = min_frq, max_frq = max_frq, factor_time_diff = factor_time_diff)
+        
+        for dataset in rawdata:
+            ensemble.append(MFTrack.from_importJSON(dataset))
             
         return cls(ensemble)
     
