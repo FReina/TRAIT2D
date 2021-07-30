@@ -601,6 +601,7 @@ class MFTrackDB(ListOfTracks):
             
         return cls(ensemble)
     
+    @classmethod
     def from_json(cls, path, name, minimum_length = 100, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
         
         ensemble = []
