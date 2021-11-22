@@ -392,28 +392,9 @@ Enabling logarithmic sampling is a good idea since the time axis will be scaled 
 
  .. code-block:: none
 
-    /home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:22: RuntimeWarning: divide by zero encountered in true_divide
-      return D + delta**2 / (2*t*(1-2*self.R*self.dt/t))
-    /home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:22: RuntimeWarning: invalid value encountered in multiply
-      return D + delta**2 / (2*t*(1-2*self.R*self.dt/t))
-    /home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:48: RuntimeWarning: divide by zero encountered in true_divide
-      D_micro * (tau/t) * (1 - np.exp(-t/tau)) + \
-    /home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:48: RuntimeWarning: invalid value encountered in multiply
-      D_micro * (tau/t) * (1 - np.exp(-t/tau)) + \
-    /home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:49: RuntimeWarning: divide by zero encountered in true_divide
-      delta ** 2 / (2 * t * (1 - 2 * self.R * self.dt / t))
-    /home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:49: RuntimeWarning: invalid value encountered in multiply
-      delta ** 2 / (2 * t * (1 - 2 * self.R * self.dt / t))
-    /home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:34: RuntimeWarning: divide by zero encountered in true_divide
-      return D_micro * (tau/t) * (1 - np.exp(-t/tau)) + \
-    /home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:34: RuntimeWarning: invalid value encountered in multiply
-      return D_micro * (tau/t) * (1 - np.exp(-t/tau)) + \
-    /home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:35: RuntimeWarning: divide by zero encountered in true_divide
-      delta ** 2 / (2 * t * (1 - 2 * self.R * self.dt / t))
-    /home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:35: RuntimeWarning: invalid value encountered in multiply
-      delta ** 2 / (2 * t * (1 - 2 * self.R * self.dt / t))
 
-    {'sectors': {'ModelBrownian': 0.35, 'ModelHop': 0.05, 'ModelConfined': 0.4, 'not catergorized': 0.2}, 'average_params': {'ModelBrownian': array([4.75078273e-13, 6.17045316e-09]), 'ModelHop': array([7.16375964e-13, 3.91597548e-09, 2.38685412e-09, 1.11810708e-08]), 'ModelConfined': array([7.09319895e-13, 7.60211965e-09, 4.64833658e-02])}, 'average_msd': {'ModelBrownian': array([1.99233836e-16, 3.98432588e-16, 5.97898475e-16, ...,
+    {'sectors': {'ModelBrownian': 0.35, 'ModelHop': 0.05, 'ModelConfined': 0.4, 'not catergorized': 0.2}, 'average_params': {'ModelBrownian': array([4.75078273e-13, 6.17045316e-09]), 'ModelHop': array([7.16375964e-13, 3.91597548e-09, 2.38685412e-09, 1.11810708e-08]), 'ModelConfined': array([7.09319895e-13, 7.60211965e-09, 4.64833658e-02])}, 't': array([0.00000000e+00, 1.00020004e-04, 2.00040008e-04, ...,
+           4.99799960e-01, 4.99899980e-01, 5.00000000e-01]), 'average_msd': {'ModelBrownian': array([1.99233836e-16, 3.98432588e-16, 5.97898475e-16, ...,
            4.07355191e-13, 4.07982485e-13, 4.07563069e-13]), 'ModelHop': array([3.16851643e-16, 6.29346578e-16, 9.39816443e-16, ...,
            3.52565304e-12, 3.51655574e-12, 3.49330320e-12]), 'ModelConfined': array([3.00925658e-16, 5.97693000e-16, 8.89323572e-16, ...,
            7.33314730e-13, 7.33946790e-13, 7.32532623e-13])}, 'average_dapp': {'ModelBrownian': array([7.47126886e-13, 5.97581614e-13, 5.60448145e-13, ...,
@@ -446,12 +427,9 @@ Now that analysis is done we can also retrieve all tracks that fit a certain dif
 
  .. code-block:: none
 
-    /home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:22: RuntimeWarning: divide by zero encountered in true_divide
-      return D + delta**2 / (2*t*(1-2*self.R*self.dt/t))
-    /home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:22: RuntimeWarning: invalid value encountered in multiply
-      return D + delta**2 / (2*t*(1-2*self.R*self.dt/t))
 
-    {'sectors': {'ModelBrownian': 1.0, 'not catergorized': 0.0}, 'average_params': {'ModelBrownian': array([4.75078273e-13, 6.17045316e-09])}, 'average_msd': {'ModelBrownian': array([1.99233836e-16, 3.98392695e-16, 5.97818209e-16, ...,
+    {'sectors': {'ModelBrownian': 1.0, 'not catergorized': 0.0}, 'average_params': {'ModelBrownian': array([4.75078273e-13, 6.17045316e-09])}, 't': array([0.000e+00, 1.000e-04, 2.000e-04, ..., 4.998e-01, 4.999e-01,
+           5.000e-01]), 'average_msd': {'ModelBrownian': array([1.99233836e-16, 3.98392695e-16, 5.97818209e-16, ...,
            4.07354356e-13, 4.07982988e-13, 4.07562817e-13])}, 'average_dapp': {'ModelBrownian': array([7.47126886e-13, 5.97589042e-13, 5.60454571e-13, ...,
            2.03853851e-13, 2.04127579e-13, 2.03876551e-13])}}
 
@@ -517,7 +495,7 @@ It is a good idea to use `ModelDB().cleanup()` at the end of your notebooks to r
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** ( 0 minutes  18.657 seconds)
+   **Total running time of the script:** ( 0 minutes  17.900 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_tutorial.py:

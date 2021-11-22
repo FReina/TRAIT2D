@@ -1,13 +1,13 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html4" lang="en" >
 <head>
   <meta charset="utf-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>TRAIT Tutorial &mdash; trait2d 1.0.11-1-g6c7b12a documentation</title>
+  <title>TRAIT Tutorial &mdash; trait2d 1.0.11-24-g13ab650 documentation</title>
   
 
   
@@ -64,7 +64,7 @@
             
             
               <div class="version">
-                1.0.11-1-g6c7b12a
+                1.0.11-24-g13ab650
               </div>
             
           
@@ -177,7 +177,7 @@
         
             
             
-              <a href="https://github.com/Eggeling-Lab-Microscope-Software/TRAIT2D/blob/master/sphinx/source/auto_examples/plot_tutorial.rst" class="fa fa-github"> Edit on GitHub</a>
+              <a href="https://github.com/FReina/TRAIT2D/blob/master/sphinx/source/auto_examples/plot_tutorial.rst" class="fa fa-github"> Edit on GitHub</a>
             
           
         
@@ -192,8 +192,8 @@
            <div itemprop="articleBody">
             
   <div class="sphx-glr-download-link-note admonition note">
-<p class="admonition-title">Note</p>
-<p>Click <a class="reference internal" href="#sphx-glr-download-auto-examples-plot-tutorial-py"><span class="std std-ref">here</span></a>     to download the full example code</p>
+<p class="first admonition-title">Note</p>
+<p class="last">Click <a class="reference internal" href="#sphx-glr-download-auto-examples-plot-tutorial-py"><span class="std std-ref">here</span></a>     to download the full example code</p>
 </div>
 <div class="sphx-glr-example-title section" id="trait-tutorial">
 <span id="sphx-glr-auto-examples-plot-tutorial-py"></span><h1>TRAIT Tutorial<a class="headerlink" href="#trait-tutorial" title="Permalink to this headline">¶</a></h1>
@@ -201,16 +201,16 @@
 <div class="section" id="simulation">
 <h2>Simulation<a class="headerlink" href="#simulation" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
-<li><p>Simulating multiple tracks with different diffusion models</p></li>
+<li>Simulating multiple tracks with different diffusion models</li>
 </ul>
 </div>
 <div class="section" id="analysis">
 <h2>Analysis<a class="headerlink" href="#analysis" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
-<li><p>Apparent Diffusion Coefficient (ADC) analysis of a single track</p></li>
-<li><p>ADC analysis of multiple tracks in bulk</p></li>
-<li><p>Retreiving an analysis summary of multiple tracks</p></li>
-<li><p>Filtering tracks by diffusion category</p></li>
+<li>Apparent Diffusion Coefficient (ADC) analysis of a single track</li>
+<li>ADC analysis of multiple tracks in bulk</li>
+<li>Retreiving an analysis summary of multiple tracks</li>
+<li>Filtering tracks by diffusion category</li>
 </ul>
 <div class="section" id="simulate-tracks">
 <h3>Simulate tracks<a class="headerlink" href="#simulate-tracks" title="Permalink to this headline">¶</a></h3>
@@ -368,34 +368,14 @@ Hopping diffusion simulation was completed in 5000 iterations.
 </pre></div>
 </div>
 <ul class="sphx-glr-horizontal">
-<li><img alt="plot tutorial" class="sphx-glr-multi-img" src="../_images/sphx_glr_plot_tutorial_003.png" />
+<li><img alt="plot tutorial" class="sphx-glr-multi-img first" src="../_images/sphx_glr_plot_tutorial_003.png" />
 </li>
-<li><img alt="plot tutorial" class="sphx-glr-multi-img" src="../_images/sphx_glr_plot_tutorial_004.png" />
+<li><img alt="plot tutorial" class="sphx-glr-multi-img first" src="../_images/sphx_glr_plot_tutorial_004.png" />
 </li>
 </ul>
 <p class="sphx-glr-script-out">Out:</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:22: RuntimeWarning: divide by zero encountered in true_divide
-  return D + delta**2 / (2*t*(1-2*self.R*self.dt/t))
-/home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:22: RuntimeWarning: invalid value encountered in multiply
-  return D + delta**2 / (2*t*(1-2*self.R*self.dt/t))
-/home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:48: RuntimeWarning: divide by zero encountered in true_divide
-  D_micro * (tau/t) * (1 - np.exp(-t/tau)) + \
-/home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:48: RuntimeWarning: invalid value encountered in multiply
-  D_micro * (tau/t) * (1 - np.exp(-t/tau)) + \
-/home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:49: RuntimeWarning: divide by zero encountered in true_divide
-  delta ** 2 / (2 * t * (1 - 2 * self.R * self.dt / t))
-/home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:49: RuntimeWarning: invalid value encountered in multiply
-  delta ** 2 / (2 * t * (1 - 2 * self.R * self.dt / t))
-/home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:34: RuntimeWarning: divide by zero encountered in true_divide
-  return D_micro * (tau/t) * (1 - np.exp(-t/tau)) + \
-/home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:34: RuntimeWarning: invalid value encountered in multiply
-  return D_micro * (tau/t) * (1 - np.exp(-t/tau)) + \
-/home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:35: RuntimeWarning: divide by zero encountered in true_divide
-  delta ** 2 / (2 * t * (1 - 2 * self.R * self.dt / t))
-/home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:35: RuntimeWarning: invalid value encountered in multiply
-  delta ** 2 / (2 * t * (1 - 2 * self.R * self.dt / t))
-
-{&#39;sectors&#39;: {&#39;ModelBrownian&#39;: 0.35, &#39;ModelHop&#39;: 0.05, &#39;ModelConfined&#39;: 0.4, &#39;not catergorized&#39;: 0.2}, &#39;average_params&#39;: {&#39;ModelBrownian&#39;: array([4.75078273e-13, 6.17045316e-09]), &#39;ModelHop&#39;: array([7.16375964e-13, 3.91597548e-09, 2.38685412e-09, 1.11810708e-08]), &#39;ModelConfined&#39;: array([7.09319895e-13, 7.60211965e-09, 4.64833658e-02])}, &#39;average_msd&#39;: {&#39;ModelBrownian&#39;: array([1.99233836e-16, 3.98432588e-16, 5.97898475e-16, ...,
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>{&#39;sectors&#39;: {&#39;ModelBrownian&#39;: 0.35, &#39;ModelHop&#39;: 0.05, &#39;ModelConfined&#39;: 0.4, &#39;not catergorized&#39;: 0.2}, &#39;average_params&#39;: {&#39;ModelBrownian&#39;: array([4.75078273e-13, 6.17045316e-09]), &#39;ModelHop&#39;: array([7.16375964e-13, 3.91597548e-09, 2.38685412e-09, 1.11810708e-08]), &#39;ModelConfined&#39;: array([7.09319895e-13, 7.60211965e-09, 4.64833658e-02])}, &#39;t&#39;: array([0.00000000e+00, 1.00020004e-04, 2.00040008e-04, ...,
+       4.99799960e-01, 4.99899980e-01, 5.00000000e-01]), &#39;average_msd&#39;: {&#39;ModelBrownian&#39;: array([1.99233836e-16, 3.98432588e-16, 5.97898475e-16, ...,
        4.07355191e-13, 4.07982485e-13, 4.07563069e-13]), &#39;ModelHop&#39;: array([3.16851643e-16, 6.29346578e-16, 9.39816443e-16, ...,
        3.52565304e-12, 3.51655574e-12, 3.49330320e-12]), &#39;ModelConfined&#39;: array([3.00925658e-16, 5.97693000e-16, 8.89323572e-16, ...,
        7.33314730e-13, 7.33946790e-13, 7.32532623e-13])}, &#39;average_dapp&#39;: {&#39;ModelBrownian&#39;: array([7.47126886e-13, 5.97581614e-13, 5.60448145e-13, ...,
@@ -411,12 +391,8 @@ Hopping diffusion simulation was completed in 5000 iterations.
 </div>
 <img alt="plot tutorial" class="sphx-glr-single-img" src="../_images/sphx_glr_plot_tutorial_005.png" />
 <p class="sphx-glr-script-out">Out:</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:22: RuntimeWarning: divide by zero encountered in true_divide
-  return D + delta**2 / (2*t*(1-2*self.R*self.dt/t))
-/home/runner/work/TRAIT2D/TRAIT2D/trait2d/analysis/models.py:22: RuntimeWarning: invalid value encountered in multiply
-  return D + delta**2 / (2*t*(1-2*self.R*self.dt/t))
-
-{&#39;sectors&#39;: {&#39;ModelBrownian&#39;: 1.0, &#39;not catergorized&#39;: 0.0}, &#39;average_params&#39;: {&#39;ModelBrownian&#39;: array([4.75078273e-13, 6.17045316e-09])}, &#39;average_msd&#39;: {&#39;ModelBrownian&#39;: array([1.99233836e-16, 3.98392695e-16, 5.97818209e-16, ...,
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>{&#39;sectors&#39;: {&#39;ModelBrownian&#39;: 1.0, &#39;not catergorized&#39;: 0.0}, &#39;average_params&#39;: {&#39;ModelBrownian&#39;: array([4.75078273e-13, 6.17045316e-09])}, &#39;t&#39;: array([0.000e+00, 1.000e-04, 2.000e-04, ..., 4.998e-01, 4.999e-01,
+       5.000e-01]), &#39;average_msd&#39;: {&#39;ModelBrownian&#39;: array([1.99233836e-16, 3.98392695e-16, 5.97818209e-16, ...,
        4.07354356e-13, 4.07982988e-13, 4.07562817e-13])}, &#39;average_dapp&#39;: {&#39;ModelBrownian&#39;: array([7.47126886e-13, 5.97589042e-13, 5.60454571e-13, ...,
        2.03853851e-13, 2.04127579e-13, 2.03876551e-13])}}
 </pre></div>
@@ -440,14 +416,12 @@ Hopping diffusion simulation was completed in 5000 iterations.
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ModelDB</span><span class="p">()</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
 </pre></div>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> ( 0 minutes  18.657 seconds)</p>
-<div class="sphx-glr-footer class sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-tutorial-py">
-<div class="sphx-glr-download sphx-glr-download-python docutils container">
-<p><a class="reference download internal" download="" href="../_downloads/43d70eb4b9ed18f8f34451c0af07d6f1/plot_tutorial.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_tutorial.py</span></code></a></p>
-</div>
-<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
-<p><a class="reference download internal" download="" href="../_downloads/706f65884faeaa9dfb13933db5a13d6a/plot_tutorial.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_tutorial.ipynb</span></code></a></p>
-</div>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> ( 0 minutes  17.900 seconds)</p>
+<div class="sphx-glr-footer class sphx-glr-footer-example container" id="sphx-glr-download-auto-examples-plot-tutorial-py">
+<div class="sphx-glr-download sphx-glr-download-python container">
+<a class="reference download internal" download="" href="../_downloads/43d70eb4b9ed18f8f34451c0af07d6f1/plot_tutorial.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_tutorial.py</span></code></a></div>
+<div class="sphx-glr-download sphx-glr-download-jupyter container">
+<a class="reference download internal" download="" href="../_downloads/706f65884faeaa9dfb13933db5a13d6a/plot_tutorial.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_tutorial.ipynb</span></code></a></div>
 </div>
 <p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
 </div>
