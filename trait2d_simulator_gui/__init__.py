@@ -9,12 +9,15 @@ GUI iSCAT simulator
 import matplotlib
 matplotlib.use('TkAgg') # This is a bug fix in order to use the GUI on Mac
 
-from trait2d.simulators import HoppingDiffusion, iscat_movie, BrownianDiffusion
+from trait2d.simulators import HoppingDiffusion, movie_simulator, BrownianDiffusion
 import matplotlib.pyplot as plt
 import numpy as np
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import ttk
+from tkinter import font
+from tkinter import messagebox
+import webbrowser
 
 # for plotting
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -62,9 +65,9 @@ class MainVisual(tk.Frame):
         self.trajectory = {}  # data of the tracks prepared for the csv file
         
         # image generation
-        self.resolution = 1e-8
+        self.resolution = 1e-7
         self.dt_image = 5e-3
-        self.snr = 25
+        self.contrast = 5
         self.background = 0.3
         self.noise_gaussian = 0.15
         self.noise_poisson = True
@@ -75,10 +78,10 @@ class MainVisual(tk.Frame):
                                    Df=self.Df, HL=self.HL, HP=self.HP, seed=self.seed)
         
         # image generator
-        self.IG = iscat_movie(tracks=None, resolution=self.resolution, dt=self.dt_image,
-                              snr=self.snr, background=self.background,
-                              noise_gaussian=self.noise_gaussian,
-                              noise_poisson=self.noise_poisson, ratio=self.ratio)
+        self.IG = movie_simulator(tracks=None, resolution=self.resolution, dt=self.dt_image,
+                                  contrast=self.contrast, background=self.background,
+                                  noise_gaussian=self.noise_gaussian,
+                                  noise_poisson=self.noise_poisson, ratio=self.ratio)
         
      # # # # # # menu to choose files and set tracker parameters # # # # # #
 
@@ -165,7 +168,10 @@ class MainVisual(tk.Frame):
         lbl6 = tk.Label(master=root, text=" Random generator seed [seed, integer]",
                         width=self.button_size, bg='gray', compound=tk.LEFT)
         lbl6.grid(row=11, column=1, columnspan=2)
-        v = tk.StringVar(root, value=str(self.seed))
+        if (self.seed == None):
+            v = tk.StringVar(root, value='')
+        else:
+            v = tk.StringVar(root, value=str(self.seed))
         self.param_seed = tk.Entry(root, width=int(self.button_size/4), text=v)
         self.param_seed.grid(row=11, column=3, columnspan=6)
 
@@ -236,12 +242,12 @@ class MainVisual(tk.Frame):
         self.param_resolution = tk.Entry(root, width=int(self.button_size/4), text=v)
         self.param_resolution.grid(row=25, column=3, columnspan=6)
 
-        lbl4 = tk.Label(master=root, text=" Signal to noise ratio [snr, ratio]",
+        lbl4 = tk.Label(master=root, text="Contrast [contrast, float>0]",
                         width=self.button_size, bg='gray', compound=tk.LEFT)
         lbl4.grid(row=26, column=1, columnspan=2)
-        v = tk.StringVar(root, value=str(self.snr))
-        self.param_snr = tk.Entry(root, width=int(self.button_size/4), text=v)
-        self.param_snr.grid(row=26, column=3, columnspan=6)
+        v = tk.StringVar(root, value=str(self.contrast))
+        self.param_contrast = tk.Entry(root, width=int(self.button_size/4), text=v)
+        self.param_contrast.grid(row=26, column=3, columnspan=6)
 
         lbl5 = tk.Label(master=root, text=" Background intensity [background, [0,1]]",
                         width=self.button_size, bg='gray', compound=tk.LEFT)
@@ -295,6 +301,14 @@ class MainVisual(tk.Frame):
         self.button2 = tk.Button(text="    SAVE   ", command=self.save_images,
                                  width=int(self.button_size/4), bg='gray')
         self.button2.grid(row=33, column=3, columnspan=6, pady=10, padx=30)
+
+        # Link to GUI documentation.
+        label_font = font.nametofont(ttk.Style().lookup("TLabel", "font"))
+        link_font = font.Font(**label_font.configure())
+        link_font.configure(underline=1, weight='bold')
+        lblDocs = tk.Label(master=root, text="Documentation", font=link_font, fg='blue', bg='gray')
+        lblDocs.grid(row=34, column=1, columnspan=1, pady=5)
+        lblDocs.bind("<Button-1>", lambda e: webbrowser.open_new("https://eggeling-lab-microscope-software.github.io/TRAIT2D/simulator_gui.html#description-of-the-gui"))
 
     def generate_trajectory(self):
         '''
@@ -350,7 +364,7 @@ class MainVisual(tk.Frame):
             title = "Diffusion"
         
         fig = plt.figure(figsize=self.fig_size)
-        self.TG.display_trajectory(time_resolution=0.5e-3, limit_fov=False, alpha=0.8,
+        self.TG.plot_trajectory(time_resolution=0.5e-3, limit_fov=False, alpha=0.8,
                                    title=title)
         plt.xlabel("x")
         plt.ylabel("y")            
@@ -400,8 +414,8 @@ class MainVisual(tk.Frame):
         if self.param_dt_image.get()!='':
             self.dt_image=float(self.param_dt_image.get())
 
-        if self.param_snr.get()!='':
-            self.snr=float(self.param_snr.get())
+        if self.param_contrast.get()!='':
+            self.contrast=float(self.param_contrast.get())
 
         if self.param_background.get()!='':
             self.background=float(self.param_background.get())
@@ -445,17 +459,26 @@ class MainVisual(tk.Frame):
         self.IG.tracks=self.trajectory
         self.IG.resolution=self.resolution
         self.IG.dt=self.dt_image
-        self.IG.snr=self.snr
+        self.IG.contrast=self.contrast
         self.IG.background=self.background
         self.IG.noise_gaussian=self.noise_gaussian
         self.IG.noise_poisson=self.noise_poisson
         self.IG.ratio=self.ratio
-        
+
+        # Compute an estimated file size
+        self.IG.initialize()
+        size_mb = self.IG.get_estimated_size()
+        continue_simulation = messagebox.askyesno("Continue simulation?",f"Estimated memory size is {size_mb:.2f}MB. Do you wish to continue?")
+        if not(continue_simulation):
+            msg = "Aborting the movie simulation"
+            print(msg)
+            messagebox.showwarning("Warning", msg)
+            return
+
         # run the generator
         self.IG.run()
         
         # plot the average image
-        
         img = np.average(self.IG.movie, axis=0)
         
         # DrawingArea
@@ -476,8 +499,7 @@ class MainVisual(tk.Frame):
                 # DrawingArea
         canvas = FigureCanvasTkAgg(fig, master=novi)
         canvas.draw()
-        canvas.get_tk_widget().grid(row=0, column=0)      
-        
+        canvas.get_tk_widget().grid(row=0, column=0)
         print("image is generated")
 
     def save_images(self):
