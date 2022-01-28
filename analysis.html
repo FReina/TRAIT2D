@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Analysis Library &mdash; trait2d 1.0.11-25-g898e9fa documentation</title>
+  <title>Analysis Library &mdash; trait2d 1.0.11-64-g8c95634 documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                1.0.11-25-g898e9fa
+                1.0.11-64-g8c95634
               </div>
             
           
@@ -116,6 +116,10 @@
 <p class="caption"><span class="caption-text">Tutorials and Examples</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="auto_examples/index.html">Example gallery</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Project Maintenance</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="maintenance.html">Project Maintenance</a></li>
 </ul>
 
             
@@ -245,7 +249,8 @@ Can also be retreived using <cite>Track.get_adc_analysis_results()</cite>.</p>
 <dl class="py method">
 <dt id="trait2d.analysis.Track.calculate_msd">
 <code class="descname">calculate_msd</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#trait2d.analysis.Track.calculate_msd" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates the mean squared displacement of the track. Result is stored in the Track object.</p>
+<dd><p>Calculates the track’s mean squared displacement (msd) and stores it in ‘track’ object. Also deletes temporary values and colelcts them.
+Furthermore, calculates the standard deviation per point of the MSD array (msd_error) and the standard error of the mean (SEM) [legacy version].</p>
 </dd></dl>
 
 <dl class="py method">
@@ -349,6 +354,12 @@ specified using the appropriate arguments.</p>
 <dt id="trait2d.analysis.Track.get_msd">
 <code class="descname">get_msd</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#trait2d.analysis.Track.get_msd" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the MSD values of the track.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="trait2d.analysis.Track.get_msd_SEM">
+<code class="descname">get_msd_SEM</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#trait2d.analysis.Track.get_msd_SEM" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the MSD SEM of the track.</p>
 </dd></dl>
 
 <dl class="py method">
