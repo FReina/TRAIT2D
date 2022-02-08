@@ -74,6 +74,19 @@ def openJSON(path = '.', filename = ''):
     
     @author: t.weihs
     Modified by FReina
+    
+    Function that reads Minflux NPY files and returns the raw output file
+    -----------------
+    Parameters:
+        path (string, default = "."):
+            the name of the folder where the json file is located
+        filename (string, default = "."):
+            the name of the file
+    
+    -----------------
+    Returns:
+        msr (custom): data structure containing all the localizations in the input data file
+        
     """
     
     if os.path.isfile(os.path.join(path,filename)):
@@ -91,8 +104,37 @@ def openJSON(path = '.', filename = ''):
         print('Data not found')
         return 0
 
+def openNPY(path = '.', filename = ''):
+    """
+    FReina created 08/02/22
+    
+    Function that reads Minflux NPY files and returns the raw output file
+    -----------------
+    Parameters:
+        path (string, default = "."):
+            the name of the folder where the npy file is located
+        filename (string, default = "."):
+            the name of the file
+    
+    -----------------
+    Returns:
+        msr (custom): data structure containing all the localizations in the input data file
+    
+    """
+    
+    if os.path.isfile(os.path.join(path, filename)):
+        try:
+            msr = np.load(os.path.join(path, filename))
+            return msr
+        except:
+            print('Cannot read file')
+            return 0
+    else:
+        print('File Not Found')
+        return 0
+    
 
-def traceInfoFromJson(path = '.',filename = ''):
+def traceInfoFromFiles(path = '.',filename = ''):
 
     """
     Created on Wed July 21 14:10:17 2021
@@ -100,8 +142,12 @@ def traceInfoFromJson(path = '.',filename = ''):
     @author: t.weihs
     Modified by FReina
     """
-    
-    msr = openJSON(path,filename)
+    if filename.endswith("json"):
+        msr = openJSON(path,filename)
+    elif filename.endswith("npy"):
+        msr = openNPY(path,filename)
+    else:
+        print("Unrecognized file format")
     
     msr = np.array(msr)
     
@@ -184,9 +230,10 @@ def traceInfoFromJson(path = '.',filename = ''):
     
     return traceInfo
 
-def importJSON(path = '.', filename= '',minimum_length = 0, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
+def track_extractor(path = '.', filename= '',minimum_length = 0, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
     
-    '''importer for MINFLUX JSON files
+    '''
+    Extracts analyzable tracks from NPY and JSON files that come from the MINFLUX
     Can filter by frequency and trajectory length
     -----------------
     Parameters:
@@ -213,7 +260,7 @@ def importJSON(path = '.', filename= '',minimum_length = 0, min_frq = 0, max_frq
             list of imported trajectories, containing tracks filtered according to the input parameters            
     '''
     
-    rawdata = traceInfoFromJson(path, filename)
+    rawdata = traceInfoFromFiles(path, filename)
     #filter by minimum number of localizations. Adds +4 to avoid counting in the minimum number also the final iterations which are usually empty.
     rawdata = rawdata[rawdata['nloc']>minimum_length + 5]
     #pass these data in a pandas dataframe
@@ -225,7 +272,7 @@ def importJSON(path = '.', filename= '',minimum_length = 0, min_frq = 0, max_frq
         id+=1
         ids = np.zeros((track['trac']['loc'][1:-4].shape[0],1))
         ids.fill(id)
-        export = export.append(pd.DataFrame(np.column_stack((track['trac']['loc'][1:-4,0],track['trac']['loc'][1:-4,1],track['trac']['tim'][1:-4],ids,track['trac']['frq'][1:-4])),columns = ('x','y','t','tid','frq')))
+        export = pd.concat([export,pd.DataFrame(np.column_stack((track['trac']['loc'][1:-4,0],track['trac']['loc'][1:-4,1],track['trac']['tim'][1:-4],ids,track['trac']['frq'][1:-4])),columns = ('x','y','t','tid','frq'))], ignore_index=True)
         
     #enact filter by time step separation and emission frequency interval
     
@@ -279,7 +326,7 @@ class MFTrack(Track):
         return cls(dict['track'].x,dict['track'].y,dict['track'].t,dict['tid'],dict['track'].frq)
     
     @classmethod
-    def from_importJSON(cls,dict):
+    def from_track_extractor(cls,dict):
         '''function to import using the return from the importJSON function, using JSON files''' 
         
         return cls(dict['track'].x,dict['track'].y,dict['track'].t,dict['tid'],dict['track'].frq)
@@ -603,13 +650,14 @@ class MFTrackDB(ListOfTracks):
         return cls(ensemble)
     
     @classmethod
-    def from_json(cls, path, name, minimum_length = 100, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
+    def from_import_from_files(cls, path, name, minimum_length = 100, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
         
         ensemble = []
-        rawdata = importJSON(path=path,filename = name,minimum_length = minimum_length, min_frq = min_frq, max_frq = max_frq, factor_time_diff = factor_time_diff)
+        if name.endswith('npy'):
+            rawdata = import_from_files(path=path,filename = name,minimum_length = minimum_length, min_frq = min_frq, max_frq = max_frq, factor_time_diff = factor_time_diff)
         
         for dataset in rawdata:
-            ensemble.append(MFTrack.from_importJSON(dataset))
+            ensemble.append(MFTrack.from_import_from_files(dataset))
             
         return cls(ensemble)
     
