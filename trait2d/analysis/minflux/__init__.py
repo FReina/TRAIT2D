@@ -321,13 +321,20 @@ class MFTrack(Track):
         
     @classmethod
     def from_importPKL(cls,dict):
-        '''function to import using the return from the importPKL function, using legacy PKL files'''    
+        '''function to import using the return from the importPKL function, using legacy PKL files.
+        This function does not take as input the file as minflux files are collections of tracks
+        and never single.
+        It can easily be turned into a hidden method in the future.
+        '''    
         
         return cls(dict['track'].x,dict['track'].y,dict['track'].t,dict['tid'],dict['track'].frq)
     
     @classmethod
     def from_track_extractor(cls,dict):
-        '''function to import using the return from the importJSON function, using JSON files''' 
+        '''function to import using the return from the track_extractor function.
+        This function does not take as input the file as minflux files are collections of tracks
+        and never single.
+        It can easily be turned into a hidden method in the future.''' 
         
         return cls(dict['track'].x,dict['track'].y,dict['track'].t,dict['tid'],dict['track'].frq)
         
@@ -650,14 +657,14 @@ class MFTrackDB(ListOfTracks):
         return cls(ensemble)
     
     @classmethod
-    def from_import_from_files(cls, path, name, minimum_length = 100, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
+    def from_track_extractor(cls, path, name, minimum_length = 100, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
         
         ensemble = []
         if name.endswith('npy'):
-            rawdata = import_from_files(path=path,filename = name,minimum_length = minimum_length, min_frq = min_frq, max_frq = max_frq, factor_time_diff = factor_time_diff)
+            rawdata = track_extractor(path=path,filename = name,minimum_length = minimum_length, min_frq = min_frq, max_frq = max_frq, factor_time_diff = factor_time_diff)
         
         for dataset in rawdata:
-            ensemble.append(MFTrack.from_import_from_files(dataset))
+            ensemble.append(MFTrack.from_track_extractor(dataset))
             
         return cls(ensemble)
     
