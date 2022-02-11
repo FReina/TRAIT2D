@@ -701,7 +701,7 @@ class MFTrackDB(ListOfTracks):
         for track in self._tracks:
             track.MF_calculate_msd()
         
-        return 0
+        return None
     
     def msd_analysis(self, **kwargs):
         """Analyze all tracks using MSD analysis.
