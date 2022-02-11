@@ -658,7 +658,34 @@ class MFTrackDB(ListOfTracks):
     
     @classmethod
     def from_track_extractor(cls, path, name, minimum_length = 100, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
-        
+        """Import all trajectories from a Minflux .npy file into a MFTrackDB object.
+        Usage: MFTrackDB.from_track_extractor(**kwargs).
+        Can filter and split trajectories by photon emission frequency, trajectory length, and time lag between localizations.
+    -----------------
+    Parameters:
+        path (string, default '.'):
+            the name of the folder where the json file is
+        filename (string):
+            filename including .json extension
+        minimum_length (int, default = 0):
+            the minimum number of localizations in a track in order to analize it
+        min_frq (int, default = 0):
+            minimum value of the average emission frequency of the track for it to be considered.
+            It should be left at zero unless bleaching is a concern
+        max_frq (int, default = infinite):
+            maximum value of the average emission frequency of the track.
+            Rationale is that if the frequency ecceeds some value, it then maybe more than one emitter. 
+            Can be left at infinite if that is not a concern
+        factor_time_diff (int, default = 10):
+            maximum time separation between two successive localizations for a track to be considered the same.
+            Rationale: maybe the particle is lost by the microscope, and a different one is then tracked.
+            Put it at a very high value (es: 50) to ignore
+    -----------------
+    Returns:
+        list_of_tracks:
+            list of imported trajectories, containing tracks filtered according to the input parameters
+        """
+    
         ensemble = []
         if name.endswith('npy'):
             rawdata = track_extractor(path=path,filename = name,minimum_length = minimum_length, min_frq = min_frq, max_frq = max_frq, factor_time_diff = factor_time_diff)
@@ -667,6 +694,14 @@ class MFTrackDB(ListOfTracks):
             ensemble.append(MFTrack.from_track_extractor(dataset))
             
         return cls(ensemble)
+    
+    def MF_calculate_msd(self):
+        """Calculate the MSD for all the MFTrack objects present in the MFTrackDB object."""
+        
+        for track in self._tracks:
+            track.MF_calculate_msd()
+        
+        return 0
     
     def msd_analysis(self, **kwargs):
         """Analyze all tracks using MSD analysis.

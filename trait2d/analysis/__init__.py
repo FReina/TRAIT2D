@@ -1055,7 +1055,7 @@ class Track:
 
     def calculate_msd(self):
         
-        """Calculates the track's mean squared displacement (msd) and stores it in 'track' object. Also deletes temporary values and colelcts them.
+        """Calculates the track's mean squared displacement (msd) and stores it in 'track' object. Also deletes temporary values and collects them.
            Furthermore, calculates the standard deviation per point of the MSD array (msd_error) and the standard error of the mean (SEM) [legacy version].
         """
                 
