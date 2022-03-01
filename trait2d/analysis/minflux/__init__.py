@@ -287,10 +287,12 @@ def track_extractor(path = '.', filename= '',minimum_length = 0, min_frq = 0, ma
         cuts = np.argwhere(np.array(target['tint']) > factor_time_diff * target.tint.min())
         split = np.split(target, cuts[:,0],axis = 0)
         
+        #since the emission frequency is the last parameter to be checked, there is no need to use filters on the emission trace (also because it is evaluated as average)
+        #if necessary, we can think of an implementation frequency-first
         for s in split:
             mean_frq = s['frq'].mean()
             if mean_frq < max_frq and mean_frq>min_frq and s.shape[0] > minimum_length:
-                list_of_tracks.append({'track':s, 'tid': track_counter, 'avg_frq': mean_frq, 'length':s.shape[0]})
+                list_of_tracks.append({'track':s, 'tid': track_counter, 'avg_frq': mean_frq, 'length':s.shape[0]})  
                 track_counter+=1
         
     return list_of_tracks
@@ -351,74 +353,6 @@ class MFTrack(Track):
         plt.semilogx(t, msd, color='black')
         plt.fill_between(t, msd-err, msd+err, color='black', alpha=0.5)
     
-    def MF_calculate_msd_cluster(self, use_log = False,mod_factor = 0.3):
-        '''calculate MSD according to the method elaborated by FR, 
-        which includes KMeans clustering to bin the squared displacements 
-        given the uneven nature of the sampling
-        The computation time can be improved with use_log = True 
-        mod_factor is set to 0.3 as default. Increasing it will increase the number of clusters (i.e. time points), 
-        but it starts behaving strangely, increasing variability in msd, and disregarding short time intervals. 
-        With anything more than 0.8 (actually not rigorously tested), set use_log = True
-        '''
-        from sklearn.cluster import KMeans
-        
-        tint_matrix_og = self._t.reshape(-1,1) - self._t #calculate all possible positive time intervals as a matrix
-        tint_matrix = np.around(self._t.reshape(-1,1) - self._t,5) #rounded down version to speed up computations
-        time_intervals = np.tril(tint_matrix) #we only really need the lower triangular matrix
-        #the rounding operation to make sure we are not too sensitive to time differences
-        
-        #we now need to create the corresponding squared displacements
-        xdis_matrix = self._x.reshape(-1, 1) - self._x
-        ydis_matrix = self._y.reshape(-1, 1) - self._y
-        sdis_matrix = np.power(xdis_matrix, 2.0) + np.power(ydis_matrix, 2.0) # squared displacement matrix
-        displacements = np.tril(sdis_matrix) #
-        
-        #the displacements matrix and the time intervals matrix have the same shape and they are both triangular. This way we can indicize them easily to obtain MSD
-        
-        #we will only cluster the unique values of the time intervals for speed. The counts are used to weigh the clustering
-        
-        unique_time_intervals, unique_counts = np.unique(time_intervals[np.nonzero(time_intervals)], return_counts=True)
-        
-        #CLUSTERING STEP
-        #The computation time can be improved by using the log-version
-        
-        #preliminary parameters
-        original_shape = tint_matrix.shape #necessary for the indexing operation
-        min_timeint = np.amin(unique_time_intervals[np.nonzero(unique_time_intervals)])
-        #initialize initial guess for the clustering and number of clusters
-        initial_guess = np.linspace(min_timeint, min_timeint*int(mod_factor*len(self._t)),num = int(mod_factor*len(self._t))) 
-        n_clusters = len(initial_guess) #avoids segfaults
-        
-        if not use_log:
-            classification = KMeans(n_clusters = n_clusters, init = initial_guess.reshape(-1,1), max_iter= 2000, algorithm='full',n_init = 1).fit(unique_time_intervals.reshape(-1,1),sample_weight=unique_counts)
-        else:
-            #THIS NEEDS TO BE TESTED
-            classification = KMeans(n_clusters = n_clusters, init = np.log(initial_guess.reshape(-1,1)), max_iter= 2000, algorithm='full',n_init = 1).fit(np.log(unique_time_intervals.reshape(-1,1)),sample_weight=unique_counts)
-            #classification.cluster_centers_ = np.exp(classification.cluster_centers_) #bring everything to regular scale again
-            
-        #actual calculation of a proper time array (maybe it can be cut to save time), msd and msd_error. This is the most computationally heavy step
-        self._msd = np.empty(0)
-        self._tn = np.empty(0)
-        self._msd_error= np.empty(0)
-        self._tn_error = np.empty(0)
-        cardinality = np.empty(0)
-        
-        from tqdm import tqdm
-        
-        for i in tqdm(range(max(classification.labels_))):
-            cluster_idx = (classification.labels_==i) #select which of the unique_time_intervals are to be considered now
-            #now we select the indices of the time_intervals matrix (lower triangular) fall into the cluster selected above
-            idx = np.where((time_intervals>=np.min(unique_time_intervals[cluster_idx]))&(time_intervals<=np.max(unique_time_intervals[cluster_idx])))
-            #the calculation of the MSD is now trivial
-                
-            cardinality = np.append(cardinality,len(idx[0]))
-            self._msd = np.append(self._msd,np.mean(sdis_matrix[idx]))
-            self._msd_error = np.append(self._msd_error,np.std(sdis_matrix[idx])/np.sqrt(len(idx[0])))
-            self._tn = np.append(self._tn,np.mean(tint_matrix_og[idx]))
-            self._tn_error = np.append(self._tn_error,np.std(tint_matrix_og[idx])/np.sqrt(len(idx[0])))
-        
-        return initial_guess, classification, cardinality
-    
     def MF_calculate_adc(self, R: float = 1/6, precision = 5):
         '''calculate Apparent Diffusion Coefficient with binning, following a less sophisticated method arising from discussion with TW.
         
@@ -459,9 +393,60 @@ class MFTrack(Track):
         #calculate arrays with all possible time intervals and all possible squared displacements.
         #in combinatorics, these are all the combinations of values of the time array, by two elements
         from itertools import combinations
-        time_couples = combinations(self._t, 2)
+        from math import factorial
         
-        pass
+        #zip x and y to obtain an ndarray of localization (x and y as tuples)
+        locs = np.array(list(zip(self._x,self._y)))
+        #create pairs of times and localizations. The combinations function in itertools always pairs in the same way, so this passage preserves the order
+        time_pairs = np.array(list(combinations(self._t, 2)))
+        x_pairs = np.array(list(combinations(self._x,2)))
+        y_pairs = np.array(list(combinations(self._y,2)))
+        
+        #create arrays of time lags and squared displacements. Use preallocation for speed
+        #time_intervals = np.zeros(factorial(len(self._t))/factorial(2)/factorial(len(self._t)-2))
+        #sq_disp = np.zeros(factorial(len(self._t))/factorial(2)/factorial(len(self._t)-2))  
+        
+        time_intervals = np.array(list(map(lambda t:t[1]-t[0], time_pairs)))
+        x_disp = np.array(list(map(lambda x:(x[1]-x[0])**2, x_pairs)))
+        y_disp = np.array(list(map(lambda y:(y[1]-y[0])**2, y_pairs)))    
+        #sq_disp = np.array(list(map(lambda p:((p[2]-p[0])**2+(p[3]-p[1])**2),locs_pairs)))
+        #sq_disp = np.array([(p[1][0]-p[0][0])**2+(p[1][1]-p[0][1])**2 for p in locs_pairs])
+        sq_disp = np.array([xd+yd for xd,yd in zip(x_disp,y_disp)])
+        
+        #sort time lags and displacements according to the former
+        
+        #time_intervals = np.array([t for t in sorted(time_intervals)])
+        #sq_disp = np.array([d for t,d in sorted(zip(time_intervals,sq_disp), key = lambda loc: loc[0])])
+        
+        #no need to look for minimum value of time intervals. The number of bins can be found easily
+        
+        min_timeint = np.amin(time_intervals)
+        
+        nbins = m.floor((self._t[-1]-self._t[0])/min_timeint)
+        #and the bin centers. We divide the time dimension in equally spaced bins, but they are later readjusted
+        bin_centers = np.linspace(min_timeint, min_timeint*nbins,num = nbins)
+        
+        #the next step should be much faster than previous implementations.
+        #The index is much more efficient when the number of displacements corresponding to a specific time interval is known. This is not the case for MINFLUX necessarily
+
+        self._msd = np.empty(0)
+        self._tn = np.empty(0)
+        self._msd_error= np.empty(0)
+        self._tn_error = np.empty(0) 
+        nn = np.empty(0)       
+        
+        for center in bin_centers:
+            #now for every bin_center we need to make a mask on time_intervals.
+            #They are binned so that the left is included and the right is excluded
+            idx = (time_intervals>=center-min_timeint/2) & (time_intervals<center+min_timeint/2)
+            nn = np.append(nn, len(np.nonzero(idx)[0]))
+            #check if a bin is not empty
+            if not nn[-1]==0:    
+                self._msd = np.append(self._msd, np.mean(sq_disp[idx]))
+                self._tn = np.append(self._tn,np.mean(time_intervals[idx]))
+                self._msd_error = np.append(self._msd_error, np.std(sq_disp[idx])/nn[-1])
+                self._tn_error = np.append(self._tn_error,np.std(time_intervals[idx])/nn[-1])
+                     
     
 
     def MF_calculate_msd(self, precision=5):
