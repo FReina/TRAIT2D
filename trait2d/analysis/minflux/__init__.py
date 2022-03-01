@@ -443,7 +443,25 @@ class MFTrack(Track):
             
         self._adc = self._msd / (4 * T * (1-2*R*dt / T))
         self._adc_error = self._msd_error / (4 * T * (1 - 2*R*dt / T))
-    
+        
+    def MF_calculate_msd_nonmatrix(self, precision = 5):
+        '''calculate MSD with binning, following a less sophisticated method arising from discussion with TW.
+        
+        precision: number of decimal places to consider when binning the time intervals, higher precision may lead to slower
+        computation times.'''
+        
+        if precision <4:
+            raise Exception("not enough decimal spaces")
+        else:
+            if precision >8:
+                raise warnings.warn("this level of precision does not make sense")
+        
+        #calculate arrays with all possible time intervals and all possible squared displacements.
+        #in combinatorics, these are all the combinations of values of the time array, by two elements
+        from itertools import combinations
+        time_couples = combinations(self._t, 2)
+        
+        pass
     
 
     def MF_calculate_msd(self, precision=5):
