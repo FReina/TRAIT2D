@@ -108,7 +108,7 @@ def openNPY(path = '.', filename = ''):
     """
     FReina created 08/02/22
     
-    Function that reads Minflux NPY files and returns the raw output file
+    Function that reads Minflux NPY files and returns the output data as they are created by the Abberior Minflux
     -----------------
     Parameters:
         path (string, default = "."):
@@ -141,7 +141,27 @@ def traceInfoFromFiles(path = '.',filename = ''):
     
     @author: t.weihs
     Modified by FReina
+    
+    Function that reads Minflux NPY or JSON files and returns formatted data which is more easy to indicize
+    -----------------
+    Parameters:
+        path (string, default = "."):
+            the name of the folder where the npy file is located
+        filename (string, default = "."):
+            the name of the file
+    
+    -----------------
+    Returns:
+        traceInfo (custom): 
+            data structure containing all the localizations in the input data file, with a custom data structure. 
+            The "non-valid" localizations are discarded, and only the localizations emerging from the last iteration are kept.
+            The data structure is organized as follows:
+                - each element in traceInfo is a trace, which is a numpy. void with custom datatype;                 
+                - at the first indicization (e.g., traceInfo[0]), the datatype is: [('tid', '<i4'), ('dura', '<f8'), ('nloc', '<i4'), ('mddt', '<f8'), ('mfrq', '<f8'), ('lgcy', '?'), ('trac', 'O')]
+                - traceInfo[0]['trac'] is another numpy.void, with datatype [('tim', '<f8'), ('loc', '<f8', (3,)), ('fbg', '<f8'), ('frq', '<f8'), ('cts', '<i4'), ('cfr', '<f8')]
+    
     """
+    
     if filename.endswith("json"):
         msr = openJSON(path,filename)
     elif filename.endswith("npy"):
