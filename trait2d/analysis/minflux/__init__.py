@@ -372,6 +372,18 @@ class MFTrack(Track):
         plt.ylabel("MSD")
         plt.semilogx(t, msd, color='black')
         plt.fill_between(t, msd-err, msd+err, color='black', alpha=0.5)
+        
+    def plot_adc(self):
+        t = self._tn
+        adc = self._adc
+        err = self._adc_error
+        import matplotlib.pyplot as plt
+        plt.figure()
+        plt.grid(linestyle='dashed', color='grey')
+        plt.xlabel("t")
+        plt.ylabel("ADC")
+        plt.semilogx(t, adc, color='black')
+        plt.fill_between(t, adc-err, adc+err, color='black', alpha=0.5)
     
     def MF_calculate_adc(self, R: float = 1/6, precision = 5):
         '''calculate Apparent Diffusion Coefficient with binning, following a less sophisticated method arising from discussion with TW.
