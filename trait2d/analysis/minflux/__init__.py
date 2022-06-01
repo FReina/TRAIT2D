@@ -710,14 +710,14 @@ class MFTrackDB(ListOfTracks):
         """
     
         ensemble = []
-        if name.endswith('npy'):
+        if name.endswith('npy') or name.endswith('json'):
             rawdata = track_extractor(path=path,filename = name,minimum_length = minimum_length, min_frq = min_frq, max_frq = max_frq, factor_time_diff = factor_time_diff)
         
         for dataset in rawdata:
             ensemble.append(MFTrack.from_track_extractor(dataset))
             
         return cls(ensemble)
-    
+        
     def MF_calculate_msd(self):
         """Calculate the MSD for all the MFTrack objects present in the MFTrackDB object."""
         
