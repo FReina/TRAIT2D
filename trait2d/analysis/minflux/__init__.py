@@ -842,12 +842,14 @@ class MFTrackDB(ListOfTracks):
         tn_ea = tn_df.mean(axis=1,skipna=True).to_numpy()
         tn_err_ea = tn_df.sem(ddof=0,axis=1,skipna=True).to_numpy()
         msd_ea = msd_df.mean(axis=1,skipna=True).to_numpy()
-        msd_err_ea = msd_df.sem(axis=1,skipna=True).to_numpy()
+        msd_err_ea = msd_df.sem(axis=1,ddof=0,skipna=True).to_numpy()
         adc_ea = adc_df.mean(axis=1,skipna=True).to_numpy()
-        adc_err_ea = adc_df.sem(axis=1,skipna=True).to_numpy()
+        adc_err_ea = adc_df.sem(axis=1,ddof=0,skipna=True).to_numpy()
                 
         
         EAverage = MFResTrack(tn = tn_ea,tn_err = tn_err_ea,msd = msd_ea, msd_err = msd_err_ea,Dapp = adc_ea, Dapp_err = adc_err_ea)
+        
+        #return EAverage
         
         ea_adc_results = EAverage.MF_adc_analysis(**kwargs)
         
@@ -901,7 +903,7 @@ class MFTrackDB(ListOfTracks):
                 results[modname] = {}
                 segmented = MFTrackDB(model_ensemble)
                 if len(model_ensemble) == 1:
-                    results[modname] = segmented._tracks[0].adc_analysis(**kwargs)
+                    results[modname] = segmented._tracks[0].MF_adc_analysis(**kwargs)
                 else: 
                     results[modname] = segmented.MF_ensemble_average(**kwargs)
                 trackdump = {'tracks' : segmented}
@@ -917,7 +919,7 @@ class MFTrackDB(ListOfTracks):
     def adc_summary(self,**kwargs):
         
         print('Use MF_adc_summary instead!')
-    
+        
     def MF_adc_summary(self, max_index = -1, avg_only_params = False, ensemble_average = False, plot_msd = False, plot_dapp = False, plot_pie_chart = False):
         """Average tracks by model and optionally plot the results.
         This is the Minflux version. That means that the tracks potentially have very different lengths. 
