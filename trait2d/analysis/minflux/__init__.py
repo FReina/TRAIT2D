@@ -975,7 +975,7 @@ class MFTrackDB(ListOfTracks):
         
         return self.MF_model_average()
     
-    def track_pop(self, track_id = -1):
+    def pop_track(self, track_id = -1):
         """Method that eliminates a track from the total, and updates the MFTrackDB. The indeces will also update to avoid gaps.
         
         Parameters
@@ -986,14 +986,10 @@ class MFTrackDB(ListOfTracks):
         """
         warnings.warn('Please update the ensemble and segmented averages!')
                 
-        newDB = []
-        for track in self._tracks:
-            if track._id == track_id:
-                continue
-            else:
-                newDB.append(track)
-        
-        self = MFTrackDB(newDB)
+        self._tracks.pop(track_id)
+        for counter, track in enumerate(self._tracks):
+            track._id = counter
+        return MFTrackDB(self._tracks)
         
     
 
