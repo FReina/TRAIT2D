@@ -401,6 +401,18 @@ class MFTrack(Track):
         plt.ylabel("MSD")
         plt.semilogx(t, msd, color='black')
         plt.fill_between(t, msd-err, msd+err, color='black', alpha=0.5)
+        
+    def plot_adc(self):
+        t = self._tn
+        adc = self._adc
+        err = self._adc_error
+        import matplotlib.pyplot as plt
+        plt.figure()
+        plt.grid(linestyle='dashed', color='grey')
+        plt.xlabel("t")
+        plt.ylabel("ADC")
+        plt.semilogx(t, adc, color='black')
+        plt.fill_between(t, adc-err, adc+err, color='black', alpha=0.5)
     
     def MF_calculate_adc(self, R: float = 1/6, precision = 5):
         '''calculate Apparent Diffusion Coefficient with binning, following a less sophisticated method arising from discussion with TW.
@@ -860,14 +872,14 @@ class MFTrackDB(ListOfTracks):
         """
     
         ensemble = []
-        if name.endswith('npy'):
+        if name.endswith('npy') or name.endswith('json'):
             rawdata = track_extractor(path=path,filename = name,minimum_length = minimum_length, min_frq = min_frq, max_frq = max_frq, factor_time_diff = factor_time_diff)
         
         for dataset in rawdata:
             ensemble.append(MFTrack.from_track_extractor(dataset))
             
         return cls(ensemble)
-    
+        
     def MF_calculate_msd(self):
         """Calculate the MSD for all the MFTrack objects present in the MFTrackDB object."""
         
@@ -939,7 +951,7 @@ class MFTrackDB(ListOfTracks):
 
         return list_failed
     
-    def MF_ensemble_average(self, max_index = -1, **kwargs):
+    def MF_ensemble_average(self, max_index = -1, perform_analysis = False, **kwargs):
         '''' 
         Calculate the ensemble average of MSD and ADC for all the tracks in the MINFLUX framework (meaning: the time tn also gets averaged).
         The ADC gets analyzed through the ADC analysis pipeline as well.
@@ -948,16 +960,25 @@ class MFTrackDB(ListOfTracks):
         
         Parameters
         ----------------
-        max_index (default = -1)
+        max_index (int, default = -1)
             In case the user wants a specific number of MSD and ADC points
+            
+        perform_analysis: (bool, default: False)
+            Flag to control whether to run MF_adc_analysis on the ensemble average.
             
         **kwargs: keyword arguments to be used by MF_adc_analysis
         
         Returns
         ----------------
+        
+        EAverage : MFResTrack
+            MFResTrack object containing the ensemble average of all tracks. The type of object is due to the lack of coordinates in this case
+        
         results: dict
+            If perform_analysis is set to true, exports this dictionary as well.
             Contains the variable ensemble average for all tracks and the results of the ADC analysis for the ensemble average ADC.
             Error defined as the standard error of the mean (ddof = 0)
+            
         '''
         #check if the MSD and ADC analysis are calculated and raise exception if it is not done for some of the tracks
         
@@ -980,29 +1001,33 @@ class MFTrackDB(ListOfTracks):
         tn_ea = tn_df.mean(axis=1,skipna=True).to_numpy()
         tn_err_ea = tn_df.sem(ddof=0,axis=1,skipna=True).to_numpy()
         msd_ea = msd_df.mean(axis=1,skipna=True).to_numpy()
-        msd_err_ea = msd_df.sem(axis=1,skipna=True).to_numpy()
+        msd_err_ea = msd_df.sem(axis=1,ddof=0,skipna=True).to_numpy()
         adc_ea = adc_df.mean(axis=1,skipna=True).to_numpy()
-        adc_err_ea = adc_df.sem(axis=1,skipna=True).to_numpy()
+        adc_err_ea = adc_df.sem(axis=1,ddof=0,skipna=True).to_numpy()
                 
         
         EAverage = MFResTrack(tn = tn_ea,tn_err = tn_err_ea,msd = msd_ea, msd_err = msd_err_ea,Dapp = adc_ea, Dapp_err = adc_err_ea)
         
-        ea_adc_results = EAverage.MF_adc_analysis(**kwargs)
+        if perform_analysis:
+            ea_adc_results = {}
         
-        del ea_adc_results["Dapp"]
-        del ea_adc_results["Dapp_err"]      
+            ea_adc_results = EAverage.MF_adc_analysis(**kwargs)
         
-        
-        return {"average_tn": tn_df.mean(axis=1,skipna=True).tolist(),
-                "average_tn_err": tn_df.sem(axis = 1, ddof=0,skipna=True).tolist(),
-                "average_msd": msd_df.mean(axis=1,skipna=True).tolist(),
-                "average_msd_err": msd_df.sem(axis=1,ddof=0,skipna=True).tolist(),
-                "average_dapp": adc_df.mean(axis=1,skipna=True).tolist(),
-                "average_dapp_err": adc_df.sem(axis=1,ddof=0,skipna=True).tolist(),
-                "adc_results": ea_adc_results}
+            del ea_adc_results["Dapp"]
+            del ea_adc_results["Dapp_err"]      
+                
+            return {"average_tn": tn_df.mean(axis=1,skipna=True).tolist(),
+                    "average_tn_err": tn_df.sem(axis = 1, ddof=0,skipna=True).tolist(),
+                    "average_msd": msd_df.mean(axis=1,skipna=True).tolist(),
+                    "average_msd_err": msd_df.sem(axis=1,ddof=0,skipna=True).tolist(),
+                    "average_dapp": adc_df.mean(axis=1,skipna=True).tolist(),
+                    "average_dapp_err": adc_df.sem(axis=1,ddof=0,skipna=True).tolist(),
+                    "adc_results": ea_adc_results}, EAverage
+        else:
+            return EAverage
     
     
-    def MF_model_average(self, max_index = -1, **kwargs):
+    def MF_model_average(self, max_index = -1, perform_analysis = False, **kwargs):
         '''' 
         Calculate the ensemble average of MSD and ADC for all the tracks in the MINFLUX framework (meaning: the time tn also gets averaged).
         The ADC gets analyzed through the ADC analysis pipeline as well.
@@ -1012,6 +1037,10 @@ class MFTrackDB(ListOfTracks):
         ----------------nm
         max_index (default = -1)
             In case the user wants a specific number of MSD and ADC points
+            
+        perform_analysis: (bool, default: False)
+            Flag to control whether to run MF_adc_analysis on the ensemble average of the tracks divided by model. 
+            If true, it will run MF_adc_analysis on the average of the tracks segmented by the same model.
             
         **kwargs
             Arguments of MF_adc_analysis
@@ -1038,10 +1067,11 @@ class MFTrackDB(ListOfTracks):
             if model_ensemble:
                 results[modname] = {}
                 segmented = MFTrackDB(model_ensemble)
-                if len(model_ensemble) == 1:
-                    results[modname] = segmented._tracks[0].adc_analysis(**kwargs)
-                else: 
-                    results[modname] = segmented.MF_ensemble_average(**kwargs)
+                if perform_analysis: #do we want to run the analysis again?
+                    if len(model_ensemble) == 1:
+                        results[modname] = segmented._tracks[0].MF_adc_analysis(**kwargs)
+                    else: 
+                        results[modname] = segmented.MF_ensemble_average(**kwargs)
                 trackdump = {'tracks' : segmented}
                 results[modname].update(trackdump)     
             
@@ -1055,7 +1085,7 @@ class MFTrackDB(ListOfTracks):
     def adc_summary(self,**kwargs):
         
         print('Use MF_adc_summary instead!')
-    
+        
     def MF_adc_summary(self, max_index = -1, avg_only_params = False, ensemble_average = False, plot_msd = False, plot_dapp = False, plot_pie_chart = False):
         """Average tracks by model and optionally plot the results.
         This is the Minflux version. That means that the tracks potentially have very different lengths. 
@@ -1066,9 +1096,9 @@ class MFTrackDB(ListOfTracks):
         max_index (default = -1)
             In case the user wants a specific number of MSD and ADC points
         avg_only_params: bool
-            Only average the model parameters but not D_app and MSD. Returns the fit parameters as tables, divided by best model, the means and the standard deviation
-        ensemble_average: bool
-            returns MF_ensemble_average()
+            Only average the model parameters but not D_app and MSD. If this flag is True, the function will only return the fit parameters as a dictionary, divided by best model, the means and the standard deviation
+        ensemble_average: (bool, default = False)
+            runs MF_ensemble_average(max_index = max_index, perform_analysis=False) and adds the ensemble average of tn, msd and adc of the tracks to the return of the function
         plot_msd: bool
             Plot the averaged MSD for each model, and the ensemble average.
         plot_dapp: bool
@@ -1088,6 +1118,10 @@ class MFTrackDB(ListOfTracks):
         for track in self._tracks:
             if track._adc_analysis_results is None:
                 raise ValueError('the ADC analysis for all tracks needs to be carried out first')
+        
+        #set up parameter exporting
+        
+        results = {}
                 
         if avg_only_params:
             
@@ -1103,13 +1137,36 @@ class MFTrackDB(ListOfTracks):
                     params[modname]['data'] = np.stack([track._adc_analysis_results['fit_results'][modname]['params'] for track in segmented._tracks], axis = 0)
                     params[modname]['average'] = [np.average(params[modname]['data'][:,i]) for i in range(params[modname]['data'].shape[1])]
                     params[modname]['stdev'] = [np.std(params[modname]['data'][:,i]) for i in range(params[modname]['data'].shape[1])]
+            
+            results = params
                     
-            return params
+        else:
+            results = self.MF_model_average()
                 
         if ensemble_average:
-            return self.MF_ensemble_average(max_index)
+            results = self.MF_ensemble_average(max_index = max_index, perform_analysis=False)
+            results.update(self.MF_model_average(max_index = max_index, perform_analysis=False))
+        else:
+            results = self.MF_model_average()
         
-        return self.MF_model_average()
+        return results
+    
+    def pop_track(self, track_id = -1):
+        """Method that eliminates a track from the total, and updates the MFTrackDB. The indeces will also update to avoid gaps.
+        
+        Parameters
+        ----------
+        track_id (default = -1)
+            selects which track to eliminate by the index
+            
+        """
+        warnings.warn('Please update the ensemble and segmented averages!')
+                
+        self._tracks.pop(track_id)
+        for counter, track in enumerate(self._tracks):
+            track._id = counter
+        return MFTrackDB(self._tracks)
+        
     
 
 
