@@ -1,4 +1,6 @@
+from asyncore import ExitNow
 import pickle as pkl
+from sre_constants import IN
 import pandas as pd
 import os
 import numpy as np
@@ -8,6 +10,9 @@ import warnings
 import json
 from scipy import interpolate
 
+from tqdm.notebook import trange, tqdm
+import gc
+
 from pandas.core.common import SettingWithCopyWarning
 warnings.simplefilter(action = "ignore", category = SettingWithCopyWarning)
 warnings.simplefilter("ignore", category = RuntimeWarning)
@@ -16,6 +21,32 @@ from trait2d.analysis import ListOfTracks
 from trait2d.analysis import Track
 
 from trait2d.analysis import ModelDB
+
+### For my own sanity 
+
+import tkinter as tk
+from tkinter import filedialog, ttk
+
+def askDIR():
+    root = tk.Tk()
+    root.withdraw()
+    root.call('wm', 'attributes', '.', '-topmost', True)
+    DIR_path = filedialog.askdirectory()
+    return DIR_path
+
+def askFILE():
+    root = tk.Tk()
+    root.withdraw()
+    root.call('wm', 'attributes', '.', '-topmost', True)
+    FILE_path = filedialog.askopenfilename()
+    return FILE_path
+
+def askFILES():
+    root = tk.Tk()
+    root.withdraw()
+    root.call('wm', 'attributes', '.', '-topmost', True)
+    FILE_path = filedialog.askopenfilenames()
+    return FILE_path
 
 ### FUNCTIONS TO LOAD PKL FILES
 
@@ -67,7 +98,7 @@ def importPKL(path='.',name='',minimum_length = 500, min_frq = 0, max_frq = 2500
     
 ###FUNCTIONS TO LOAD JSON FILES
 
-def openJSON(path = '.', filename = ''):
+def openJSON(file:str = ''):
     
     """
     Created on Wed July 21 14:10:17 2021
@@ -89,22 +120,19 @@ def openJSON(path = '.', filename = ''):
         
     """
     
-    if os.path.isfile(os.path.join(path,filename)):
-    
-        with open(os.path.join(path,filename),'rb') as data:
-            try:
-                msr = json.load(data)
-                data.close()
-                return msr
-            except:
-                print('\n\tCouldn\'t read data file!\n')
-                return 0
-    
-    else:
-        print('Data not found')
-        return 0
+    while not os.path.isfile(file):
+        file = askFILE()
+        
+    with open(file) as data:
+        try:
+            msr = json.load(data)
+            data.close()
+            return msr
+        except:
+            print('Cannot read file')
+            return 0
 
-def openNPY(path = '.', filename = ''):
+def openNPY(file:str = ''):
     """
     FReina created 08/02/22
     
@@ -122,19 +150,19 @@ def openNPY(path = '.', filename = ''):
     
     """
     
-    if os.path.isfile(os.path.join(path, filename)):
-        try:
-            msr = np.load(os.path.join(path, filename))
-            return msr
-        except:
-            print('Cannot read file')
-            return 0
-    else:
-        print('File Not Found')
+    while not os.path.isfile(file):
+        file = askFILE()
+        
+    try:
+        msr = np.load(file)
+        return msr
+    except:
+        print('Cannot read file')
         return 0
+
     
 
-def traceInfoFromFiles(path = '.',filename = ''):
+def traceInfoFromFiles(file):
 
     """
     Created on Wed July 21 14:10:17 2021
@@ -162,12 +190,13 @@ def traceInfoFromFiles(path = '.',filename = ''):
     
     """
     
-    if filename.endswith("json"):
-        msr = openJSON(path,filename)
-    elif filename.endswith("npy"):
-        msr = openNPY(path,filename)
-    else:
-        print("Unrecognized file format")
+    while not os.path.isfile(file):
+        file = askFILE()
+    
+    if file.endswith(".json"):
+        msr = openJSON(file)
+    elif file.endswith(".npy"):
+        msr = openNPY(file)
     
     msr = np.array(msr)
     
@@ -250,7 +279,7 @@ def traceInfoFromFiles(path = '.',filename = ''):
     
     return traceInfo
 
-def track_extractor(path = '.', filename= '',minimum_length = 0, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
+def track_extractor(file:str = "", minimum_length = 0, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
     
     '''
     Extracts analyzable tracks from NPY and JSON files that come from the MINFLUX
@@ -279,8 +308,8 @@ def track_extractor(path = '.', filename= '',minimum_length = 0, min_frq = 0, ma
         list_of_tracks:
             list of imported trajectories, containing tracks filtered according to the input parameters            
     '''
-    
-    rawdata = traceInfoFromFiles(path, filename)
+        
+    rawdata = traceInfoFromFiles(file)
     #filter by minimum number of localizations. Adds +4 to avoid counting in the minimum number also the final iterations which are usually empty.
     rawdata = rawdata[rawdata['nloc']>minimum_length + 5]
     #pass these data in a pandas dataframe
@@ -359,7 +388,7 @@ class MFTrack(Track):
         It can easily be turned into a hidden method in the future.''' 
         
         return cls(dict['track'].x,dict['track'].y,dict['track'].t,dict['tid'],dict['track'].frq)
-        
+    
     
     def plot_msd(self):
         t = self._tn
@@ -398,64 +427,94 @@ class MFTrack(Track):
         self._adc = self._msd / (4 * T * (1-2*R*dt / T))
         self._adc_error = self._msd_error / (4 * T * (1 - 2*R*dt / T))
         
-    def MF_calculate_msd_nonmatrix(self, precision = 5):
+    def MF_calculate_msd_nonmatrix_legacy(self, precision = 5):
         '''calculate MSD with binning, following a less sophisticated method arising from discussion with TW.
         
         precision: number of decimal places to consider when binning the time intervals, higher precision may lead to slower
         computation times.'''
-        
+
+        from itertools import combinations
+
         if precision <4:
             raise Exception("not enough decimal spaces")
         else:
             if precision >8:
                 raise warnings.warn("this level of precision does not make sense")
         
+        ## Setting up TQDM bar
+        pbar = tqdm(total = 10, desc = "Spinning up MSD calculation ...")
+        
         #calculate arrays with all possible time intervals and all possible squared displacements.
         #in combinatorics, these are all the combinations of values of the time array, by two elements
-        from itertools import combinations
-        from math import factorial
-        
-        #zip x and y to obtain an ndarray of localization (x and y as tuples)
-        locs = np.array(list(zip(self._x,self._y)))
+
+
         #create pairs of times and localizations. The combinations function in itertools always pairs in the same way, so this passage preserves the order
+        pbar.update(1)
+        pbar.set_description("Setting up time pairs ...")
         time_pairs = np.array(list(combinations(self._t, 2)))
+        
+        pbar.update(1)
+        pbar.set_description("Calculating time intervals ...")
+        time_intervals = np.array(list(map(lambda t:t[1]-t[0], time_pairs)))
+        
+        del time_pairs
+        
+        pbar.update(1)
+        pbar.set_description("Setting up X pairs ...")
         x_pairs = np.array(list(combinations(self._x,2)))
+        
+        pbar.update(1)
+        pbar.set_description("Calculating X displacements ...")
+        x_disp = np.array(list(map(lambda x:(x[1]-x[0])**2, x_pairs)))
+        
+        del x_pairs
+        
+        pbar.update(1)
+        pbar.set_description("Setting up Y pairs ...")
         y_pairs = np.array(list(combinations(self._y,2)))
         
-        #create arrays of time lags and squared displacements. Use preallocation for speed
-        #time_intervals = np.zeros(factorial(len(self._t))/factorial(2)/factorial(len(self._t)-2))
-        #sq_disp = np.zeros(factorial(len(self._t))/factorial(2)/factorial(len(self._t)-2))  
+        pbar.update(1)
+        pbar.set_description("Calculating Y displacements ...")
+        y_disp = np.array(list(map(lambda y:(y[1]-y[0])**2, y_pairs)))
         
-        time_intervals = np.array(list(map(lambda t:t[1]-t[0], time_pairs)))
-        x_disp = np.array(list(map(lambda x:(x[1]-x[0])**2, x_pairs)))
-        y_disp = np.array(list(map(lambda y:(y[1]-y[0])**2, y_pairs)))    
-        #sq_disp = np.array(list(map(lambda p:((p[2]-p[0])**2+(p[3]-p[1])**2),locs_pairs)))
-        #sq_disp = np.array([(p[1][0]-p[0][0])**2+(p[1][1]-p[0][1])**2 for p in locs_pairs])
+        del y_pairs
+        
+        gc.collect()
+                
+        pbar.update(1)
+        pbar.set_description("Calculating squared displacements ...")
         sq_disp = np.array([xd+yd for xd,yd in zip(x_disp,y_disp)])
+        
+        del x_disp, y_disp
+        
+        gc.collect()
         
         #sort time lags and displacements according to the former
         
-        #time_intervals = np.array([t for t in sorted(time_intervals)])
-        #sq_disp = np.array([d for t,d in sorted(zip(time_intervals,sq_disp), key = lambda loc: loc[0])])
-        
-        #no need to look for minimum value of time intervals. The number of bins can be found easily
+        pbar.update(1)
+        pbar.set_description("Setting up bins ...")
         
         min_timeint = np.amin(time_intervals)
         
         nbins = m.floor((self._t[-1]-self._t[0])/min_timeint)
+        
         #and the bin centers. We divide the time dimension in equally spaced bins, but they are later readjusted
         bin_centers = np.linspace(min_timeint, min_timeint*nbins,num = nbins)
         
         #the next step should be much faster than previous implementations.
         #The index is much more efficient when the number of displacements corresponding to a specific time interval is known. This is not the case for MINFLUX necessarily
 
+        print(time_intervals.shape, sq_disp.shape)
+        
+        pbar.update(1)
+        pbar.set_description("Spinning up MSD binning ...")
         self._msd = np.empty(0)
         self._tn = np.empty(0)
         self._msd_error= np.empty(0)
         self._tn_error = np.empty(0) 
         nn = np.empty(0)       
         
-        for center in bin_centers:
+        for center in tqdm(bin_centers, desc="Calculating MSD ..."):
             #now for every bin_center we need to make a mask on time_intervals.
             #They are binned so that the left is included and the right is excluded
             idx = (time_intervals>=center-min_timeint/2) & (time_intervals<center+min_timeint/2)
@@ -465,11 +524,101 @@ class MFTrack(Track):
                 self._msd = np.append(self._msd, np.mean(sq_disp[idx]))
                 self._tn = np.append(self._tn,np.mean(time_intervals[idx]))
                 self._msd_error = np.append(self._msd_error, np.std(sq_disp[idx])/nn[-1])
-                self._tn_error = np.append(self._tn_error,np.std(time_intervals[idx])/nn[-1])
-                     
-    
+                self._tn_error = np.append(self._tn_error,np.std(time_intervals[idx])/nn[-1])          
+        pbar.update(1)
+        pbar.set_description("Finished. Closing down ...")
+        pbar.close()
+        
+    def MF_calculate_MSD(self, precision: int = 5):
+        
+        from itertools import product
+        
+        '''calculate MSD with binning, following a less sophisticated method arising from discussion with TW.
+        
+        precision: number of decimal places to consider when binning the time intervals, higher precision may lead to slower
+        computation times.'''
+                
+        if precision <4:
+            raise Exception("WARNING: Precision must be 4 or larger!")
+        if precision >8:
+            warnings.warn("WARNING: This level of precision does not make sense.")
 
-    def MF_calculate_msd(self, precision=5):
+        ## Setting up TQDM bar
+        pbar = tqdm(total = 5, desc = "Spinning up MSD calculation ...")
+            
+        s = int(self._t.shape[0])
+        
+        pbar.update(1)
+        pbar.set_description("Calculating X,Y,T intervals ...")
+        
+        #create arrays of time lags and squared displacements.
+        TIME_INTERVALS = []
+        X = []
+        Y = []
+        
+        for i in trange(s, desc="Calculating intervals ..."):
+            TIME_INTERVALS.append(self._t[1+i:] - self._t[i])
+            X.append(self._x[1+i:] - self._x[i])
+            Y.append(self._y[1+i:] - self._y[i])
+            
+        pbar.update(1)
+        pbar.set_description("Calculating Squared Displacement ...")
+        DXY = np.square(np.concatenate(X)) + np.square(np.concatenate(Y))
+        
+        del X,Y
+        TIME_INTERVALS = np.concatenate(TIME_INTERVALS)
+        
+        #sort time lags and displacements according to the former
+        pbar.update(1)
+        pbar.set_description("Setting up bins ...")
+        
+        #min_timeint = np.round(a = np.amin(TIME_INTERVALS), decimals=precision)
+        min_timeint = a = np.amin(TIME_INTERVALS)
+        
+        nbins = m.floor((self._t[-1]-self._t[0])/min_timeint)
+        
+        #and the bin centers. We divide the time dimension in equally spaced bins, but they are later readjusted
+        bin_centers = np.linspace(min_timeint, min_timeint*nbins,num = nbins)
+        
+        #the next step should be much faster than previous implementations.
+        #The index is much more efficient when the number of displacements corresponding to a specific time interval is known. This is not the case for MINFLUX necessarily
+
+        pbar.update(1)
+        pbar.set_description("Spinning up MSD binning ...")
+        
+        self._msd = []
+        self._tn = []
+        self._msd_error= []
+        self._tn_error = []
+        nn = []      
+
+        edge = min_timeint/2
+
+        for center in tqdm(bin_centers, desc="Binning MSD ..."):
+            #now for every bin_center we need to make a mask on time_intervals.
+            #They are binned so that the left is included and the right is excluded
+            idx = (TIME_INTERVALS>=center-edge) & (TIME_INTERVALS<center+edge)
+            nn.append(len(np.nonzero(idx)[0]))
+            
+            #check if a bin is not empty
+            if not nn[-1]==0:    
+                self._msd.append(DXY[idx])
+                self._tn.append(TIME_INTERVALS[idx])
+                self._msd_error.append(DXY[idx])
+                self._tn_error.append(TIME_INTERVALS[idx])
+        
+        nn = np.array(nn) != 0
+        self._msd = np.array([np.mean(i) for i in self._msd])
+        self._tn = np.array([np.mean(i) for i in self._tn])
+        self._msd_error = np.array([np.std(i) for i in self._msd_error]) / nn
+        self._tn_error = np.array([np.std(i) for i in self._tn_error]) / nn
+              
+        pbar.update(1)
+        pbar.set_description("Finished. Closing down ...")
+        pbar.close()
+        
+
+    def MF_calculate_msd_matrix_legacy(self, precision=5):
         '''calculate MSD with binning, following a less sophisticated method arising from discussion with TW.
         
         precision: number of decimal places to consider when binning the time intervals, higher precision may lead to slower
@@ -490,7 +639,8 @@ class MFTrack(Track):
         xdis_matrix = self._x.reshape(-1, 1) - self._x
         ydis_matrix = self._y.reshape(-1, 1) - self._y
         sdis_matrix = np.power(xdis_matrix, 2.0) + np.power(ydis_matrix, 2.0) # squared displacement matrix
-        displacements = np.tril(sdis_matrix) # only using the lower triangular matrix coherently with the time_intervals matrix above
+        
+        #displacements = np.tril(sdis_matrix) # only using the lower triangular matrix coherently with the time_intervals matrix above
         
         #the binning is done on the linear array of unique time intervals 
         
