@@ -390,24 +390,42 @@ class MFTrack(Track):
         return cls(dict['track'].x,dict['track'].y,dict['track'].t,dict['tid'],dict['track'].frq)
     
     
-    def plot_msd(self):
-        t = self._tn
-        msd = self._msd
-        err = self._msd_error
+    def plot_msd(self, min:float = 1e-3, max:float = 25e-3):
+        try:
+            min = np.nonzero(self._tn > min)[0][0]
+        except:
+            min = 0
+        try:
+            max = np.nonzero(self._tn > max)[0][0]
+        except:
+            max = self._tn.shape[0]
+        t = self._tn[min:max]
+        msd = self._msd[min:max]
+        err = self._msd_error[min:max]
         import matplotlib.pyplot as plt
         plt.figure()
+        plt.title('MSD plot Track No: ' + str(self._id))
         plt.grid(linestyle='dashed', color='grey')
         plt.xlabel("t")
         plt.ylabel("MSD")
         plt.semilogx(t, msd, color='black')
         plt.fill_between(t, msd-err, msd+err, color='black', alpha=0.5)
         
-    def plot_adc(self):
-        t = self._tn
-        adc = self._adc
-        err = self._adc_error
+    def plot_adc(self, min:float = 1e-3, max:float = 25e-3):
+        try:
+            min = np.nonzero(self._tn > min)[0][0]
+        except:
+            min = 0
+        try:
+            max = np.nonzero(self._tn > max)[0][0]
+        except:
+            max = self._tn.shape[0]
+        t = self._tn[min:max]
+        adc = self._adc[min:max]
+        err = self._adc_error[min:max]
         import matplotlib.pyplot as plt
         plt.figure()
+        plt.title('ADC plot Track No: ' + str(self._id))
         plt.grid(linestyle='dashed', color='grey')
         plt.xlabel("t")
         plt.ylabel("ADC")
@@ -427,7 +445,7 @@ class MFTrack(Track):
                 raise warnings.warn("this level of precision does not make sense")
         
         if self._msd is None:
-            self.MF_calculate_msd()
+            self.MF_calculate_MSD()
             
         dt = self._tn[0]
         N = self._msd.size
@@ -619,7 +637,8 @@ class MFTrack(Track):
                 self._msd_error.append(DXY[idx])
                 self._tn_error.append(TIME_INTERVALS[idx])
         
-        nn = np.array(nn) != 0
+        nn = np.array(nn)
+        nn = nn[nn!= 0] 
         self._msd = np.array([np.mean(i) for i in self._msd])
         self._tn = np.array([np.mean(i) for i in self._tn])
         self._msd_error = np.array([np.std(i) for i in self._msd_error]) / nn
@@ -785,7 +804,9 @@ class MFResTrack(MFTrack):
         self._msd_error = msd_err
         self._adc = Dapp
         self._adc_error = Dapp_err
-        
+        self._msd_analysis_results = None
+        self._adc_analysis_results = None
+            
     def MF_calculate_adc(self):
         TypeError('Cannot use this method on a MFResTrack')
 
@@ -797,23 +818,21 @@ class MFResTrack(MFTrack):
         
     def plot_trajectory(self):
         TypeError('Cannot use this method on a MFResTrack')
-        
+  
     def __repr__(self):
         return ("<%s instance at %s>\n"
                 "------------------------\n"
                 "Track length:%s\n"
-                "Track ID:%s\n"
                 "------------------------\n"
                 "MSD analysis done:%s\n"
                 "ADC analysis done:%s\n") % (
             self.__class__.__name__,
             id(self),
-            str(self._t.size).rjust(11, ' '),
-            str(self._id).rjust(15, ' '),
+            str(self._tn.size).rjust(11, ' '),
             str(self._msd_analysis_results is not None).rjust(6, ' '),
             str(self._adc_analysis_results is not None).rjust(6, ' ')
         )
-    
+
 
 class MFTrackDB(ListOfTracks):
     '''A custom class to work with the Minflux Tracks in the legacy PKL format'''
@@ -842,7 +861,51 @@ class MFTrackDB(ListOfTracks):
         return cls(ensemble)
     
     @classmethod
-    def from_track_extractor(cls, path, name, minimum_length = 100, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
+    def from_file(cls, file = "", format=None, col_name_x='x', col_name_y='y', col_name_t='t', col_name_id='id', unit_length='metres', unit_time='seconds'):
+        """Create a ListOfTracks from a file containing multiple tracks. Currently only supports '.csv' files.
+        The file must contain the fields 'x', 'y', 't' as well as 'id'. Different column names can also be
+        specified using the appropriate arguments.
+
+        Parameters
+        ----------
+        filename: str
+            Name of the file.
+        format: str
+            Either 'csv' or 'json' or 'pcl'. Only csv is implemented at the moment.
+        col_name_x: str
+            Column title of x positions.
+        col_name_y: str
+            Column title of y positions.
+        col_name_t: str
+            Column title of time.
+        col_name_id: str
+            Column title of track IDs.
+        unit_length: str
+            Length unit of track data. Either 'metres', 'millimetres', 'micrometres' or 'nanometres'.
+        unit_time: str
+            Time unit of track data. Either 'seconds', 'milliseconds', 'microseconds' or 'nanoseconds'.
+        id: int
+            Track ID in case the file contains more than one track.
+
+        Raises
+        ------
+        LoadTrackIdNotFoundError
+            When no track with the given id is found
+        LodTrackIdMissingError
+            When the file contains multiple tracks but no id is specified.
+        """
+        while not os.path.isfile(file):
+            file = askFILE()
+        
+        df = pd.read_csv(file)
+        ids = df[col_name_id].unique()
+        tracks = []
+        for id in ids:
+            tracks.append(MFTrack.from_dataframe(df, col_name_x, col_name_y, col_name_t, col_name_id, unit_length, unit_time, id))
+        return cls(tracks)
+    
+    @classmethod
+    def from_track_extractor(cls, file:str = "", minimum_length = 100, min_frq = 0, max_frq = np.inf, factor_time_diff = 10):
         """Import all trajectories from a Minflux .npy file into a MFTrackDB object.
         Usage: MFTrackDB.from_track_extractor(**kwargs).
         Can filter and split trajectories by photon emission frequency, trajectory length, and time lag between localizations.
@@ -872,22 +935,50 @@ class MFTrackDB(ListOfTracks):
         """
     
         ensemble = []
-        if name.endswith('npy') or name.endswith('json'):
-            rawdata = track_extractor(path=path,filename = name,minimum_length = minimum_length, min_frq = min_frq, max_frq = max_frq, factor_time_diff = factor_time_diff)
         
+        rawdata = track_extractor(file, minimum_length = minimum_length, min_frq = min_frq, max_frq = max_frq, factor_time_diff = factor_time_diff)
+                
         for dataset in rawdata:
             ensemble.append(MFTrack.from_track_extractor(dataset))
             
         return cls(ensemble)
         
-    def MF_calculate_msd(self):
+    def MF_calculate_MSD(self):
         """Calculate the MSD for all the MFTrack objects present in the MFTrackDB object."""
         
         for track in self._tracks:
-            track.MF_calculate_msd()
+            track.MF_calculate_MSD()
         
         return None
     
+    def get_IDs(self):
+        out = []
+        for track in self._tracks:
+            out.append(track._id)
+        return out
+    
+    def saveTracks(self, file:str = None, format:str = '.csv', col_x_name = "Position X", col_y_name = "Position Y", col_t_name = "T", col_id_name = "TrackID"):
+        
+        while file == None:
+            file = askDIR() + "/" + input('Please enter file name...') + format
+            
+        col = {col_t_name:[], col_x_name:[], col_y_name:[], col_id_name:[]}
+
+        
+        for track in self._tracks:
+            col['Position X'].append(track._x)
+            col['Position Y'].append(track._y)
+            col['T'].append(track._t)
+            col['TrackID'].append(np.full(shape = track._t.shape[0], fill_value=track._id))
+            
+        col['T'] = np.concatenate(col['T'])
+        col['Position X'] = np.concatenate(col['Position X'])
+        col['Position Y'] = np.concatenate(col['Position Y'])
+        col['TrackID'] = np.concatenate(col['TrackID'])
+
+        DF = pd.DataFrame(col)
+        DF.to_csv(file, index=False)
+        
     def msd_analysis(self, **kwargs):
         """Analyze all tracks using MSD analysis.
 
@@ -951,7 +1042,7 @@ class MFTrackDB(ListOfTracks):
 
         return list_failed
     
-    def MF_ensemble_average(self, max_index = -1, perform_analysis = False, **kwargs):
+    def MF_ensemble_average(self, max_index = -1, perform_analysis = False, precision:int = 5, tolerance:int = 10, **kwargs):
         '''' 
         Calculate the ensemble average of MSD and ADC for all the tracks in the MINFLUX framework (meaning: the time tn also gets averaged).
         The ADC gets analyzed through the ADC analysis pipeline as well.
@@ -965,6 +1056,9 @@ class MFTrackDB(ListOfTracks):
             
         perform_analysis: (bool, default: False)
             Flag to control whether to run MF_adc_analysis on the ensemble average.
+            
+        precision: (int, default = 5)
+            Determines the decimal rounded to while binning the timesteps.
             
         **kwargs: keyword arguments to be used by MF_adc_analysis
         
@@ -994,6 +1088,36 @@ class MFTrackDB(ListOfTracks):
         
         #make pandas dataframes of tn, MSD and ADC
         
+        tmp_tn = []
+        for track in self._tracks:
+            tmp_tn.append(track._tn)
+            
+        sort = np.unique(np.round(np.concatenate(tmp_tn), decimals = precision))
+        
+        MSD_bins = [[] for i in range(sort.shape[0])]
+        ADC_bins = [[] for i in range(sort.shape[0])]
+
+
+        MSD_col = []
+        ADC_col = []
+        
+        for track in self._tracks:
+            tmp_dig = np.digitize(track._tn, bins=sort)
+            
+            for i, ind in enumerate(tmp_dig):
+                MSD_bins[ind-1].append(track._msd[i])
+                ADC_bins[ind-1].append(track._adc[i])
+                
+        
+        for l in MSD_bins:
+            MSD_col.append(np.mean(l))    
+            
+        for t in ADC_bins:
+            ADC_col.append(np.mean(t))  
+        
+        return MSD_col, ADC_col
+            
+        """
         tn_df = pd.DataFrame(data = [track._tn[0:max_index] for track in self._tracks]).transpose()
         msd_df = pd.DataFrame(data = [track._msd[0:max_index] for track in self._tracks]).transpose()
         adc_df = pd.DataFrame(data = [track._adc[0:max_index] for track in self._tracks]).transpose()
@@ -1005,7 +1129,7 @@ class MFTrackDB(ListOfTracks):
         adc_ea = adc_df.mean(axis=1,skipna=True).to_numpy()
         adc_err_ea = adc_df.sem(axis=1,ddof=0,skipna=True).to_numpy()
                 
-        
+        """
         EAverage = MFResTrack(tn = tn_ea,tn_err = tn_err_ea,msd = msd_ea, msd_err = msd_err_ea,Dapp = adc_ea, Dapp_err = adc_err_ea)
         
         if perform_analysis:
@@ -1166,6 +1290,25 @@ class MFTrackDB(ListOfTracks):
         for counter, track in enumerate(self._tracks):
             track._id = counter
         return MFTrackDB(self._tracks)
+    
+    def pop_tracks(self, track_IDs:list = None):
+        """Method that eliminates a number of tracks from the total, and updates the MFTrackDB. The indeces will also update to avoid gaps.
+        
+        Parameters
+        ----------
+        track_id (list, default = None)
+            selects which tracks to eliminate by their index
+            
+        """
+        warnings.warn('Please update the ensemble and segmented averages!')
+        
+        for ID in track_IDs:
+            self._tracks.pop(ID)
+            
+        for counter, track in enumerate(self._tracks):
+            track._id = counter
+        return MFTrackDB(self._tracks)
+    
         
     
 

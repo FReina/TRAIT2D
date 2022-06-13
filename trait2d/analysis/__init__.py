@@ -64,6 +64,26 @@ class ModelDB(Borg):
             if model == self.models[i].__class__:
                 return self.models[i]
         raise ValueError("ModelDB does not contain an instance of the model {}.".format(model.__name__))
+    
+    def get_model_by_name(self, name:str):
+        """
+        Return the model instance from ModelDB.
+
+        Parameters
+        ----------
+        model:
+            Model class (*not* and instance) to remove. Example usage:
+
+            .. code-block:: python
+            
+                from trait2d.analysis.models import ModelConfined
+                ModelDB().get_model(ModelConfined).initial = [1.0e-12, 1.0e-9, 0.5e-3]
+        """
+
+        for i in range(len(self.models)):
+            if name == self.models[i].__class__.__name__:
+                return self.models[i]
+        raise ValueError("ModelDB does not contain an instance of the model {}.".format(name))
 
     def remove_model(self, model):
         """
